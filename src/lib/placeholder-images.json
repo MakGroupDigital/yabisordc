@@ -1,0 +1,28 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-congo-river",
+      "description": "A view of the Congo River at sunset.",
+      "imageUrl": "https://images.unsplash.com/photo-1722864785170-ff4ac19ec9e4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjb25nbyUyMHJpdmVyJTIwc3Vuc2V0fGVufDB8fHx8MTc2NDE1NTcxNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "congo river sunset"
+    },
+    {
+      "id": "dest-kinshasa",
+      "description": "The bustling city of Kinshasa.",
+      "imageUrl": "https://images.unsplash.com/photo-1673384554142-8f4082db67cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxraW5zaGFzYSUyMGNpdHklMjBuaWdodHxlbnwwfHx8fDE3NjQxNTU3MTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "kinshasa city night"
+    },
+    {
+      "id": "dest-virunga",
+      "description": "Mountain gorillas in Virunga National Park.",
+      "imageUrl": "https://images.unsplash.com/photo-1557174362-0aa917ad92f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8dmlydW5nYSUyMGdvcmlsbGF8ZW58MHx8fHwxNzY0MTU1NzE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "virunga gorilla"
+    },
+    {
+      "id": "dest-moanda",
+      "description": "The coastline of Moanda.",
+      "imageUrl": "https://images.unsplash.com/photo-1566729722725-82f7b150b4b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtb2FuZGElMjBiZWFjaHxlbnwwfHx8fDE3NjQxNTU3MTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "moanda beach"
+    }
+  ]
+}

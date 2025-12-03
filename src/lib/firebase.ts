@@ -4,12 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB_ySRXw-ejKoICMYmMSmnpBLhYKnwSB9w",
-  authDomain: "studio-3821305079-74f59.firebaseapp.com",
-  projectId: "studio-3821305079-74f59",
-  storageBucket: "studio-3821305079-74f59.firebasestorage.app",
-  messagingSenderId: "832016559824",
-  appId: "1:832016559824:web:7abf29b6ab35547950f8d5"
+  apiKey: "AIzaSyDAZAE7QuDpyEZt9L_yDHK2JQ0DttgTqE0",
+  authDomain: "ya-biso-app-m8378v.firebaseapp.com",
+  projectId: "ya-biso-app-m8378v",
+  storageBucket: "ya-biso-app-m8378v.appspot.com",
+  messagingSenderId: "832289923317",
+  appId: "1:832289923317:web:88103097bb7f53604165bc"
 };
 
 
@@ -18,7 +18,6 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Initialiser Storage avec le bucket explicite
-const storage = getStorage(app, firebaseConfig.storageBucket);
+const storage = getStorage(app);
 
 export { app, auth, db, storage };

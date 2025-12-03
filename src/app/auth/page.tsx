@@ -5,616 +5,404 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auth } from '@/lib/firebase';
 import { 
-  RecaptchaVerifier, 
-  signInWithPhoneNumber, 
-  ConfirmationResult,
-  onAuthStateChanged,
-  User,
+  createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
-import { Loader2, Phone, ArrowLeft, AlertCircle, ExternalLink, Mail, Eye, EyeOff } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 
-function AuthForm() {
+function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
-  
-  const [authMode, setAuthMode] = useState<'phone' | 'email'>('email');
-  const [step, setStep] = useState<'phone' | 'code' | 'email'>('email');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
-  const [showAuthNotEnabled, setShowAuthNotEnabled] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('login');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const redirectTo = searchParams.get('redirect') || '/home';
-
+  // Vérifier si l'utilisateur est déjà connecté
   useEffect(() => {
-    // Vérifier si l'utilisateur est déjà connecté
-    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
+        // Rediriger vers la page de création ou la page d'origine
+        const redirectTo = searchParams.get('redirect') || '/home/create';
         router.push(redirectTo);
       }
     });
     return () => unsubscribe();
-  }, [router, redirectTo]);
+  }, [router, searchParams]);
 
-  useEffect(() => {
-    // Initialiser reCAPTCHA seulement en mode téléphone
-    if (typeof window !== 'undefined' && authMode === 'phone' && !recaptchaVerifier) {
-      // Attendre que le DOM soit prêt
-      const initRecaptcha = () => {
-        const container = document.getElementById('recaptcha-container');
-        if (!container) {
-          // Réessayer après un court délai si le conteneur n'est pas encore dans le DOM
-          setTimeout(initRecaptcha, 100);
-          return;
-        }
-
-        // S'assurer que le conteneur est complètement vide
-        container.innerHTML = '';
-        
-        // Vérifier qu'il n'y a pas d'enfants
-        while (container.firstChild) {
-          container.removeChild(container.firstChild);
-        }
-
-        try {
-          const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible',
-            callback: () => {
-              // reCAPTCHA résolu
-            },
-            'expired-callback': () => {
-              toast({
-                title: 'reCAPTCHA expiré',
-                description: 'Veuillez réessayer',
-                variant: 'destructive',
-              });
-            }
-          });
-          setRecaptchaVerifier(verifier);
-        } catch (error) {
-          console.error('Erreur lors de l\'initialisation de reCAPTCHA:', error);
-        }
-      };
-
-      // Utiliser requestAnimationFrame pour s'assurer que le DOM est prêt
-      requestAnimationFrame(() => {
-        setTimeout(initRecaptcha, 0);
-      });
-    }
-
-    return () => {
-      if (recaptchaVerifier && authMode !== 'phone') {
-        try {
-          recaptchaVerifier.clear();
-        } catch (error) {
-          console.error('Erreur lors du nettoyage de reCAPTCHA:', error);
-        }
-        setRecaptchaVerifier(null);
-      }
-    };
-  }, [authMode, recaptchaVerifier, toast]);
-
-  const formatPhoneNumber = (value: string) => {
-    // Supprimer tous les caractères non numériques
-    const numbers = value.replace(/\D/g, '');
-    
-    // Formater pour la RDC (format: +243XXXXXXXXX)
-    if (numbers.startsWith('243')) {
-      return `+${numbers}`;
-    } else if (numbers.startsWith('0')) {
-      return `+243${numbers.substring(1)}`;
-    } else if (numbers.length > 0) {
-      return `+243${numbers}`;
-    }
-    return value;
-  };
-
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!phoneNumber || phoneNumber.length < 9) {
-      toast({
-        title: 'Numéro invalide',
-        description: 'Veuillez entrer un numéro de téléphone valide',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!recaptchaVerifier) {
-      toast({
-        title: 'Erreur',
-        description: 'reCAPTCHA non initialisé. Veuillez rafraîchir la page',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-    const formattedPhone = formatPhoneNumber(phoneNumber);
-
-    try {
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
-      setConfirmationResult(confirmation);
-      setStep('code');
-      toast({
-        title: 'Code envoyé !',
-        description: 'Vérifiez vos messages SMS',
-      });
-    } catch (error: any) {
-      console.error('Erreur lors de l\'envoi du code:', error);
-      let errorMessage = 'Une erreur est survenue';
-      
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Numéro de téléphone invalide';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard';
-      } else if (error.code === 'auth/captcha-check-failed') {
-        errorMessage = 'Vérification reCAPTCHA échouée';
-      } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/invalid-app-credential') {
-        errorMessage = 'L\'authentification par téléphone n\'est pas activée ou configurée correctement';
-        setShowAuthNotEnabled(true);
-        console.error('🔴 ACTION REQUISE: Activez l\'authentification par téléphone dans Firebase Console');
-        console.error('Lien direct: https://console.firebase.google.com/project/studio-3821305079-74f59/authentication/providers');
-        console.error('💡 ASTUCE: Utilisez l\'authentification par Email en attendant (bouton "Email" en haut)');
-      }
-      
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!verificationCode || verificationCode.length !== 6) {
-      toast({
-        title: 'Code invalide',
-        description: 'Veuillez entrer le code à 6 chiffres',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!confirmationResult) {
-      toast({
-        title: 'Erreur',
-        description: 'Aucune confirmation en cours',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    setError(null);
     setLoading(true);
 
     try {
-      await confirmationResult.confirm(verificationCode);
-      toast({
-        title: 'Connexion réussie !',
-        description: 'Vous êtes maintenant connecté',
+      if (!displayName.trim()) {
+        setError('Le nom d\'utilisateur est requis');
+        setLoading(false);
+        return;
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Mettre à jour le profil avec le nom d'affichage
+      await updateProfile(userCredential.user, {
+        displayName: displayName.trim()
       });
+
+      // Rediriger vers la page de création ou la page d'origine
+      const redirectTo = searchParams.get('redirect') || '/home/create';
       router.push(redirectTo);
-    } catch (error: any) {
-      console.error('Erreur lors de la vérification du code:', error);
-      let errorMessage = 'Code invalide';
-      
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Code de vérification invalide';
-      } else if (error.code === 'auth/code-expired') {
-        errorMessage = 'Code expiré. Veuillez demander un nouveau code';
-        setStep('phone');
-      }
-      
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+    } catch (err: any) {
+      console.error('Erreur lors de l\'inscription:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      setError(getErrorMessage(errorCode));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendCode = async () => {
-    if (!recaptchaVerifier) return;
-    
-    setLoading(true);
-    const formattedPhone = formatPhoneNumber(phoneNumber);
-
-    try {
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
-      setConfirmationResult(confirmation);
-      toast({
-        title: 'Code renvoyé !',
-        description: 'Vérifiez vos messages SMS',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de renvoyer le code',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: 'Champs requis',
-        description: 'Veuillez remplir tous les champs',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    setError(null);
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-        toast({
-          title: 'Compte créé !',
-          description: 'Vous êtes maintenant connecté',
-        });
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast({
-          title: 'Connexion réussie !',
-          description: 'Vous êtes maintenant connecté',
-        });
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      // Rediriger vers la page de création ou la page d'origine
+      const redirectTo = searchParams.get('redirect') || '/home/create';
       router.push(redirectTo);
-    } catch (error: any) {
-      console.error('Erreur lors de l\'authentification:', error);
-      let errorMessage = 'Une erreur est survenue';
-      
-      if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email invalide';
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = 'Ce compte a été désactivé';
-      } else if (error.code === 'auth/user-not-found') {
-        errorMessage = 'Aucun compte trouvé avec cet email';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Mot de passe incorrect';
-      } else if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Cet email est déjà utilisé';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Le mot de passe est trop faible (minimum 6 caractères)';
-      }
-      
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+    } catch (err: any) {
+      console.error('Erreur lors de la connexion:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      setError(getErrorMessage(errorCode));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      // Rediriger vers la page de création ou la page d'origine
+      const redirectTo = searchParams.get('redirect') || '/home/create';
+      router.push(redirectTo);
+    } catch (err: any) {
+      console.error('Erreur lors de la connexion Google:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      setError(getErrorMessage(errorCode));
+      setLoading(false);
+    }
+  };
+
+  const getErrorMessage = (code: string): string => {
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return 'Cet email est déjà utilisé';
+      case 'auth/invalid-email':
+        return 'Email invalide';
+      case 'auth/weak-password':
+        return 'Le mot de passe doit contenir au moins 6 caractères';
+      case 'auth/user-not-found':
+        return 'Aucun compte trouvé avec cet email. Vérifiez votre email ou créez un compte';
+      case 'auth/wrong-password':
+        return 'Mot de passe incorrect';
+      case 'auth/invalid-credential':
+        return 'Email ou mot de passe incorrect. Vérifiez vos identifiants';
+      case 'auth/invalid-login-credentials':
+        return 'Email ou mot de passe incorrect. Vérifiez vos identifiants';
+      case 'auth/too-many-requests':
+        return 'Trop de tentatives. Réessayez plus tard';
+      case 'auth/network-request-failed':
+        return 'Erreur de connexion. Vérifiez votre connexion internet';
+      case 'auth/user-disabled':
+        return 'Ce compte a été désactivé';
+      default:
+        return `Erreur: ${code}. Veuillez réessayer ou contacter le support`;
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#003366] via-[#004080] to-[#00509e] p-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-2xl">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-[#FF8800] p-3">
-              {authMode === 'phone' ? (
-                <Phone className="h-8 w-8 text-white" />
-              ) : (
-                <Mail className="h-8 w-8 text-white" />
-              )}
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-[#003366] to-[#001122] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center mb-4">
+            <Image
+              src="https://res.cloudinary.com/dy73hzkpm/image/upload/v1764155959/IMG_7775_cxdvvm.png"
+              alt="Ya Biso RDC Logo"
+              width={80}
+              height={80}
+              className="rounded-full"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-[#003366]">
-            {step === 'phone' ? 'Connexion' : step === 'code' ? 'Vérification' : isSignUp ? 'Inscription' : 'Connexion'}
+          <h1 className="text-3xl font-headline font-bold text-white mb-2">
+            Ya Biso RDC
           </h1>
-          <p className="text-gray-600">
-            {step === 'phone' 
-              ? 'Entrez votre numéro de téléphone pour continuer'
-              : step === 'code'
-              ? 'Entrez le code de vérification envoyé par SMS'
-              : isSignUp
-              ? 'Créez votre compte'
-              : 'Connectez-vous avec votre email'}
+          <p className="text-white/80">
+            Rejoignez la communauté
           </p>
         </div>
 
-        {/* Toggle entre téléphone et email */}
-        <div className="flex gap-2 justify-center">
-          <Button
-            type="button"
-            variant={authMode === 'email' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setAuthMode('email');
-              setStep('email');
-              setShowAuthNotEnabled(false);
-              // Nettoyer reCAPTCHA quand on passe en mode email
-              if (recaptchaVerifier) {
-                recaptchaVerifier.clear();
-                setRecaptchaVerifier(null);
-              }
-            }}
-            className={authMode === 'email' ? 'bg-[#FF8800]' : ''}
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            Email
-          </Button>
-          <Button
-            type="button"
-            variant={authMode === 'phone' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setAuthMode('phone');
-              setStep('phone');
-              setShowAuthNotEnabled(false);
-              // Réinitialiser reCAPTCHA quand on passe en mode téléphone
-              if (recaptchaVerifier) {
-                recaptchaVerifier.clear();
-                setRecaptchaVerifier(null);
-              }
-            }}
-            className={authMode === 'phone' ? 'bg-[#FF8800]' : ''}
-            title="L'authentification par téléphone nécessite une configuration dans Firebase Console"
-          >
-            <Phone className="h-4 w-4 mr-2" />
-            Téléphone
-          </Button>
-        </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-sm">
+            <TabsTrigger value="login" className="text-white data-[state=active]:bg-[#FF8800]">
+              Connexion
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="text-white data-[state=active]:bg-[#FF8800]">
+              Inscription
+            </TabsTrigger>
+          </TabsList>
 
-        {/* reCAPTCHA container (invisible) - seulement pour le mode téléphone */}
-        {authMode === 'phone' && (
-          <div 
-            id="recaptcha-container" 
-            style={{ 
-              position: 'absolute',
-              visibility: 'hidden',
-              width: 0,
-              height: 0,
-              overflow: 'hidden'
-            }}
-          />
-        )}
+          {/* Connexion */}
+          <TabsContent value="login" className="mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <form onSubmit={handleSignIn} className="space-y-4">
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500 text-red-200 rounded-lg p-3 text-sm">
+                    {error}
+                  </div>
+                )}
 
-        {/* Alerte si l'authentification n'est pas activée */}
-        {showAuthNotEnabled && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Authentification non activée</AlertTitle>
-            <AlertDescription className="mt-2">
-              <p className="mb-3">
-                L'authentification par téléphone n'est pas activée dans Firebase Console.
-              </p>
-              <div className="space-y-2">
-                <a
-                  href="https://console.firebase.google.com/project/studio-3821305079-74f59/authentication/providers"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                <div className="space-y-2">
+                  <Label htmlFor="login-email" className="text-white">
+                    Email
+                  </Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="login-password" className="text-white">
+                    Mot de passe
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="bg-white/20 border-white/30 text-white placeholder:text-white/50 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
                 >
-                  Activer dans Firebase Console
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-                <p className="text-xs">
-                  Étapes: Authentication → Sign-in method → Phone → Enable
-                </p>
-                <p className="mt-3 text-sm font-semibold text-blue-700">
-                  💡 En attendant, utilisez l'authentification par Email (bouton "Email" ci-dessus)
-                </p>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Form */}
-        {authMode === 'email' && step === 'email' ? (
-          <form onSubmit={handleEmailAuth} className="space-y-6">
-            <div>
-              <Label htmlFor="email" className="text-lg font-semibold mb-2 block">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="password" className="text-lg font-semibold mb-2 block">
-                Mot de passe
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Connexion...
+                    </>
                   ) : (
-                    <Eye className="h-5 w-5" />
+                    'Se connecter'
                   )}
-                </button>
+                </Button>
+              </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-transparent text-white/60">Ou</span>
+                </div>
               </div>
-              {isSignUp && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Minimum 6 caractères
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <Button
-                type="submit"
-                disabled={loading || !email || !password}
-                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    {isSignUp ? 'Création...' : 'Connexion...'}
-                  </>
-                ) : (
-                  isSignUp ? 'Créer le compte' : 'Se connecter'
-                )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setEmail('');
-                  setPassword('');
-                }}
-                className="w-full"
-              >
-                {isSignUp 
-                  ? 'Déjà un compte ? Se connecter' 
-                  : 'Pas de compte ? S\'inscrire'}
-              </Button>
-            </div>
-          </form>
-        ) : step === 'phone' ? (
-          <form onSubmit={handleSendCode} className="space-y-6">
-            <div>
-              <Label htmlFor="phone" className="text-lg font-semibold mb-2 block">
-                Numéro de téléphone
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  +243
-                </span>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="900 000 000"
-                  value={phoneNumber.replace(/^\+243/, '')}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="pl-16"
-                  maxLength={12}
-                />
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Format: +243 900 000 000
-              </p>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading || !phoneNumber}
-              className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Envoi en cours...
-                </>
-              ) : (
-                'Envoyer le code'
-              )}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyCode} className="space-y-6">
-            <div>
-              <Label htmlFor="code" className="text-lg font-semibold mb-2 block">
-                Code de vérification
-              </Label>
-              <Input
-                id="code"
-                type="text"
-                placeholder="000000"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="text-center text-2xl tracking-widest"
-                maxLength={6}
-              />
-              <p className="text-sm text-gray-500 mt-2 text-center">
-                Code envoyé au {formatPhoneNumber(phoneNumber)}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <Button
-                type="submit"
-                disabled={loading || verificationCode.length !== 6}
-                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Vérification...
-                  </>
-                ) : (
-                  'Vérifier'
-                )}
-              </Button>
 
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep('phone')}
-                className="w-full"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full bg-white/10 border-white/30 text-white hover:bg-white/20"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Changer de numéro
+                <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                Continuer avec Google
               </Button>
+            </div>
+          </TabsContent>
+
+          {/* Inscription */}
+          <TabsContent value="signup" className="mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <form onSubmit={handleSignUp} className="space-y-4">
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500 text-red-200 rounded-lg p-3 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name" className="text-white">
+                    Nom d'utilisateur
+                  </Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Votre nom"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    required
+                    className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email" className="text-white">
+                    Email
+                  </Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password" className="text-white">
+                    Mot de passe
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="bg-white/20 border-white/30 text-white placeholder:text-white/50 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-white/60">
+                    Au moins 6 caractères
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Inscription...
+                    </>
+                  ) : (
+                    'Créer un compte'
+                  )}
+                </Button>
+              </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-transparent text-white/60">Ou</span>
+                </div>
+              </div>
 
               <Button
                 type="button"
-                variant="ghost"
-                onClick={handleResendCode}
+                variant="outline"
+                onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full"
+                className="w-full bg-white/10 border-white/30 text-white hover:bg-white/20"
               >
-                Renvoyer le code
+                <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                Continuer avec Google
               </Button>
             </div>
-          </form>
-        )}
-
-        {/* Footer */}
-        <div className="text-center text-sm text-gray-500 pt-4">
-          <p>En continuant, vous acceptez nos conditions d'utilisation</p>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
@@ -623,11 +411,11 @@ function AuthForm() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#003366] via-[#004080] to-[#00509e]">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen bg-gradient-to-b from-[#003366] to-[#001122] flex items-center justify-center">
+        <div className="text-white">Chargement...</div>
       </div>
     }>
-      <AuthForm />
+      <AuthPageContent />
     </Suspense>
   );
 }

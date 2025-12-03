@@ -1,438 +1,635 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BottomNav } from '@/components/home/bottom-nav';
-import { Header } from '@/components/home/feed-header';
-import { createPost, uploadMedia } from '@/lib/posts';
-import { useAuthRedirect } from '@/hooks/use-auth-redirect';
-import { X, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
+import { X, Upload, Loader2, Hash } from 'lucide-react';
+import { storage, db, auth } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import Image from 'next/image';
-import { useToast } from '@/hooks/use-toast';
-import { CircularProgress } from '@/components/ui/circular-progress';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, ExternalLink } from 'lucide-react';
-
-type MediaFile = {
-  file: File;
-  preview: string;
-  type: 'image' | 'video';
-};
+import { Progress } from '@/components/ui/progress';
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const { user, loading } = useAuthRedirect('/auth');
-  
+  const [user, setUser] = useState<User | null>(null);
   const [caption, setCaption] = useState('');
+  const [hashtags, setHashtags] = useState('');
   const [location, setLocation] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [showStorageError, setShowStorageError] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => 
+      file.type.startsWith('image/') || file.type.startsWith('video/')
+    );
 
-    Array.from(files).forEach((file) => {
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
+    if (validFiles.length === 0) return;
 
-      if (!isImage && !isVideo) {
-        toast({
-          title: 'Format non supporté',
-          description: 'Veuillez sélectionner une image ou une vidéo',
-          variant: 'destructive',
-        });
-        return;
+    const currentFilesCount = mediaFiles.length;
+    const filesToAdd = validFiles.slice(0, 10 - currentFilesCount);
+    
+    if (filesToAdd.length === 0) return;
+
+    // Créer les previews avec URL.createObjectURL (plus simple et fiable)
+    const newPreviews: string[] = [];
+    filesToAdd.forEach(file => {
+      try {
+        const objectURL = URL.createObjectURL(file);
+        newPreviews.push(objectURL);
+      } catch (error) {
+        console.error('Erreur lors de la création de la preview:', error);
       }
-
-      const preview = URL.createObjectURL(file);
-      setMediaFiles((prev) => [
-        ...prev,
-        { file, preview, type: isImage ? 'image' : 'video' },
-      ]);
     });
+
+    // Mettre à jour les états seulement si des previews ont été créées
+    if (newPreviews.length > 0) {
+      setMediaFiles(prev => [...prev, ...filesToAdd]);
+      setMediaPreviews(prev => [...prev, ...newPreviews]);
+    }
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const removeMedia = (index: number) => {
-    setMediaFiles((prev) => {
-      const newFiles = prev.filter((_, i) => i !== index);
-      newFiles.forEach((mf) => URL.revokeObjectURL(mf.preview));
-      return newFiles;
-    });
+    // Libérer l'URL de l'objet avant de supprimer
+    const previewToRemove = mediaPreviews[index];
+    if (previewToRemove) {
+      try {
+        URL.revokeObjectURL(previewToRemove);
+      } catch (error) {
+        // Ignorer les erreurs de révocation
+      }
+    }
+    setMediaFiles(prev => prev.filter((_, i) => i !== index));
+    setMediaPreviews(prev => prev.filter((_, i) => i !== index));
   };
+
+  // Nettoyer les URLs lors du démontage du composant
+  useEffect(() => {
+    return () => {
+      mediaPreviews.forEach(preview => {
+        if (preview && (preview.startsWith('blob:') || preview.startsWith('http'))) {
+          try {
+            URL.revokeObjectURL(preview);
+          } catch (error) {
+            // Ignorer les erreurs de révocation
+          }
+        }
+      });
+    };
+  }, [mediaPreviews]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
+    // Validations initiales
     if (!user) {
-      // Redirection déjà gérée par useAuthRedirect
+      alert('Vous devez être connecté pour publier');
       return;
     }
 
     if (mediaFiles.length === 0) {
-      toast({
-        title: 'Média requis',
-        description: 'Veuillez ajouter au moins une image ou une vidéo',
-        variant: 'destructive',
-      });
+      alert('Veuillez ajouter au moins une image ou une vidéo');
       return;
     }
 
-    setIsSubmitting(true);
-    setShowUploadDialog(true);
+    // Vérifier que storage est bien initialisé
+    if (!storage) {
+      console.error('❌ Firebase Storage n\'est pas initialisé');
+      alert('Erreur de configuration. Veuillez rafraîchir la page.');
+      return;
+    }
+
+    setUploading(true);
     setUploadProgress(0);
-    setCurrentUploadIndex(0);
+    setUploadStatus('Préparation de l\'upload...');
+    setUploadError(null);
 
     try {
+      console.log('🚀 Début de l\'upload:', {
+        filesCount: mediaFiles.length,
+        userId: user.uid,
+        userEmail: user.email,
+        files: mediaFiles.map(f => ({ name: f.name, type: f.type, size: f.size }))
+      });
+
+      // Upload des médias vers Firebase Storage avec suivi de progression
       const mediaUrls: { type: 'image' | 'video'; url: string }[] = [];
-      
-      // Uploader les médias un par un pour suivre la progression
+      const totalFiles = mediaFiles.length;
+      let uploadedFiles = 0;
+
       for (let i = 0; i < mediaFiles.length; i++) {
-        setCurrentUploadIndex(i + 1);
-        setUploadProgress(0);
+        const file = mediaFiles[i];
         
-        const url = await uploadMedia(
-          mediaFiles[i].file, 
-          user.uid,
-          (progress) => {
-            // Calculer la progression globale
-            const totalProgress = ((i / mediaFiles.length) * 100) + (progress / mediaFiles.length);
-            setUploadProgress(totalProgress);
+        try {
+          // Vérifier que le fichier est valide
+          if (!file || file.size === 0) {
+            throw new Error(`Le fichier ${file?.name || `#${i + 1}`} est invalide ou vide`);
           }
-        );
-        
-        // Valider l'URL avant de l'ajouter
-        if (!url || !url.startsWith('http')) {
-          throw new Error(`URL invalide pour le média ${i + 1}: ${url}`);
+
+          const timestamp = Date.now();
+          const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const fileRef = ref(storage, `posts/${user.uid}/${timestamp}_${i}_${sanitizedName}`);
+          
+          console.log(`📤 Début upload fichier ${i + 1}/${totalFiles}:`, {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            path: fileRef.fullPath
+          });
+          
+          setUploadStatus(`Upload de ${i + 1}/${totalFiles}...`);
+          setUploadProgress(Math.round((uploadedFiles / totalFiles) * 100));
+          
+          // Utiliser uploadBytesResumable pour suivre la progression
+          const uploadTask = uploadBytesResumable(fileRef, file);
+          
+          // Démarrer l'upload immédiatement
+          uploadTask.resume();
+          
+          await new Promise<void>((resolve, reject) => {
+            let hasStarted = false;
+            let uploadTimeout: NodeJS.Timeout | null = null;
+            
+            // Timeout de sécurité (5 minutes par fichier)
+            uploadTimeout = setTimeout(() => {
+              if (!hasStarted) {
+                console.error('⏱️ Timeout: L\'upload n\'a pas démarré dans les 30 secondes');
+                reject(new Error(`L'upload du fichier "${file.name}" a pris trop de temps. Vérifiez votre connexion internet.`));
+              }
+            }, 30000);
+            
+            uploadTask.on(
+              'state_changed',
+              (snapshot) => {
+                // Annuler le timeout si l'upload a démarré
+                if (uploadTimeout) {
+                  clearTimeout(uploadTimeout);
+                  uploadTimeout = null;
+                }
+                
+                if (!hasStarted) {
+                  hasStarted = true;
+                  console.log(`📊 Upload démarré pour ${file.name}`, {
+                    state: snapshot.state,
+                    bytesTransferred: snapshot.bytesTransferred,
+                    totalBytes: snapshot.totalBytes
+                  });
+                }
+                
+                // Calculer la progression du fichier actuel (0-100)
+                const fileProgress = snapshot.totalBytes > 0 
+                  ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100 
+                  : 0;
+                
+                // Calculer la progression globale : fichiers déjà uploadés + progression du fichier actuel
+                const overallProgress = ((uploadedFiles * 100 + fileProgress) / totalFiles);
+                const roundedProgress = Math.min(Math.round(overallProgress), 99);
+                
+                setUploadProgress(roundedProgress);
+                setUploadStatus(`Upload de ${i + 1}/${totalFiles}... ${Math.round(fileProgress)}%`);
+                
+                if (Math.round(fileProgress) % 25 === 0 || fileProgress === 100) {
+                  console.log(`📈 Progression: ${roundedProgress}% (fichier: ${Math.round(fileProgress)}%)`);
+                }
+              },
+              (error: any) => {
+                if (uploadTimeout) {
+                  clearTimeout(uploadTimeout);
+                }
+                console.error('❌ Erreur lors de l\'upload:', {
+                  code: error.code,
+                  message: error.message,
+                  fileName: file.name,
+                  fileSize: file.size,
+                  fileType: file.type
+                });
+                
+                // Messages d'erreur plus explicites
+                let errorMessage = 'Erreur lors de l\'upload';
+                if (error.code === 'storage/unauthorized') {
+                  errorMessage = 'Vous n\'avez pas la permission d\'uploader. Vérifiez les règles Firebase Storage.';
+                } else if (error.code === 'storage/canceled') {
+                  errorMessage = 'L\'upload a été annulé.';
+                } else if (error.code === 'storage/unknown') {
+                  errorMessage = 'Erreur inconnue. Vérifiez votre connexion internet.';
+                } else if (error.message) {
+                  errorMessage = error.message;
+                }
+                
+                reject(new Error(`${errorMessage} (fichier: ${file.name})`));
+              },
+              async () => {
+                if (uploadTimeout) {
+                  clearTimeout(uploadTimeout);
+                }
+                
+                try {
+                  // Upload terminé pour ce fichier
+                  console.log(`✅ Upload terminé pour ${file.name}, récupération de l'URL...`);
+                  const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                  
+                  if (!downloadURL) {
+                    throw new Error('Impossible de récupérer l\'URL de téléchargement');
+                  }
+                  
+                  mediaUrls.push({
+                    type: file.type.startsWith('image/') ? 'image' : 'video',
+                    url: downloadURL
+                  });
+                  
+                  uploadedFiles++;
+                  const progress = Math.round((uploadedFiles / totalFiles) * 100);
+                  setUploadProgress(progress);
+                  setUploadStatus(`Fichier ${i + 1}/${totalFiles} uploadé avec succès`);
+                  console.log(`✅ Fichier ${i + 1}/${totalFiles} uploadé:`, downloadURL);
+                  resolve();
+                } catch (error: any) {
+                  console.error('❌ Erreur lors de la récupération de l\'URL:', {
+                    error: error,
+                    code: error?.code,
+                    message: error?.message,
+                    fileName: file.name
+                  });
+                  reject(new Error(`Impossible de récupérer l'URL du fichier "${file.name}": ${error?.message || 'Erreur inconnue'}`));
+                }
+              }
+            );
+          });
+        } catch (fileError: any) {
+          console.error(`❌ Erreur pour le fichier ${i + 1}:`, fileError);
+          throw new Error(`Erreur lors de l'upload du fichier "${file.name}": ${fileError.message || 'Erreur inconnue'}`);
         }
-        
-        mediaUrls.push({
-          type: mediaFiles[i].type,
-          url: url.trim(), // Nettoyer l'URL
-        });
-        
-        console.log(`✅ Média ${i + 1} uploadé et validé:`, {
-          type: mediaFiles[i].type,
-          url: url,
-          urlLength: url.length,
-          urlStartsWithHttp: url.startsWith('http')
-        });
       }
+
+      console.log('✅ Tous les fichiers uploadés:', mediaUrls.length);
+      setUploadStatus('Sauvegarde de la publication...');
+      setUploadProgress(95);
+
+      // Vérifier que nous avons au moins une URL
+      if (mediaUrls.length === 0) {
+        throw new Error('Aucun fichier n\'a été uploadé avec succès');
+      }
+
+      // Combiner caption et hashtags
+      const fullCaption = hashtags.trim() 
+        ? `${caption.trim()} ${hashtags.trim()}`.trim()
+        : caption.trim();
+
+      // Créer le post dans Firestore
+      const postData = {
+        author: user.displayName || user.email?.split('@')[0] || 'Utilisateur',
+        authorId: user.uid,
+        location: location || '',
+        avatarUrl: user.photoURL || '',
+        media: mediaUrls,
+        caption: fullCaption,
+        likes: 0,
+        comments: 0,
+        createdAt: serverTimestamp(),
+      };
+
+      console.log('💾 Sauvegarde dans Firestore...', {
+        author: postData.author,
+        mediaCount: postData.media.length,
+        captionLength: postData.caption.length
+      });
+
+      // Vérifier que db est bien initialisé
+      if (!db) {
+        throw new Error('Firebase Firestore n\'est pas initialisé');
+      }
+
+      const docRef = await addDoc(collection(db, 'posts'), postData);
+      console.log('✅ Publication créée avec succès:', {
+        id: docRef.id,
+        path: docRef.path
+      });
 
       setUploadProgress(100);
+      setUploadStatus('Publication réussie !');
 
-      // Validation finale avant sauvegarde
-      console.log('📦 Validation finale des médias avant sauvegarde:');
-      mediaUrls.forEach((m, i) => {
-        if (!m.url || !m.url.startsWith('http')) {
-          console.error(`❌ Média ${i + 1} a une URL invalide:`, m);
-          throw new Error(`URL invalide pour le média ${i + 1}`);
-        }
-        console.log(`✅ Média ${i + 1}:`, {
-          type: m.type,
-          url: m.url,
-          isValid: m.url.startsWith('https://firebasestorage.googleapis.com')
-        });
-      });
+      // Attendre un peu pour que l'utilisateur voie le 100%
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      console.log('💾 Création de la publication avec les médias:', {
-        mediaCount: mediaUrls.length,
-        mediaUrls: mediaUrls.map(m => ({ 
-          type: m.type, 
-          url: m.url,
-          urlPreview: m.url.substring(0, 100) + '...'
-        }))
-      });
-
-      // Créer la publication
-      await createPost(
-        user.displayName || user.email?.split('@')[0] || 'Utilisateur',
-        user.uid,
-        location || 'RDC',
-        user.photoURL || 'https://picsum.photos/seed/user/40/40',
-        mediaUrls,
-        caption
-      );
-
-      toast({
-        title: 'Publication créée !',
-        description: 'Votre publication a été ajoutée avec succès',
-      });
-
-      // Nettoyer les previews
-      mediaFiles.forEach((mf) => URL.revokeObjectURL(mf.preview));
-
-      // Fermer le dialog et rediriger avec rafraîchissement forcé
-      setShowUploadDialog(false);
-      
-      // Attendre un peu pour que Firestore enregistre les données
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Rediriger vers la page home avec un paramètre pour forcer le rafraîchissement
-      router.push('/home?refresh=' + Date.now());
-      router.refresh(); // Forcer le rafraîchissement de Next.js
+      // Rediriger vers le feed
+      router.push('/home');
     } catch (error: any) {
-      console.error('Erreur lors de la création de la publication:', error);
-      setShowUploadDialog(false);
+      console.error('❌ Erreur lors de la publication:', {
+        error: error,
+        name: error?.name,
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack
+      });
       
-      let errorMessage = 'Une erreur est survenue lors de la création de la publication';
-      
-      if (error.code === 'storage/unauthorized' || error.code === 'storage/permission-denied') {
-        errorMessage = 'Firebase Storage n\'est pas activé ou les permissions sont incorrectes. Activez-le dans Firebase Console.';
-        setShowStorageError(true);
-        console.error('🔴 ACTION REQUISE: Activez Firebase Storage dans Firebase Console');
-        console.error('Lien direct: https://console.firebase.google.com/project/studio-3821305079-74f59/storage');
-      } else if (error.code === 'storage/canceled') {
-        errorMessage = 'L\'upload a été annulé';
-      } else if (error.code === 'storage/unknown') {
-        errorMessage = 'Une erreur inconnue est survenue lors de l\'upload';
-      } else if (error.code === 'storage/quota-exceeded') {
-        errorMessage = 'Le quota de stockage a été dépassé';
-      } else if (error.code === 'storage/unauthenticated') {
-        errorMessage = 'Vous devez être authentifié pour uploader des fichiers';
-      } else if (error.code === 'permission-denied' || error.code?.includes('permission')) {
-        errorMessage = 'Permissions insuffisantes. Vérifiez les règles Firestore et Storage dans Firebase Console.';
-        console.error('🔴 Erreur de permissions:', error);
-        console.error('Vérifiez les règles dans Firebase Console');
+      // Message d'erreur plus détaillé pour l'utilisateur
+      let userMessage = 'Erreur lors de la publication';
+      if (error?.code) {
+        userMessage += ` (${error.code})`;
+      }
+      if (error?.message) {
+        userMessage += `: ${error.message}`;
+      } else if (error?.toString) {
+        userMessage += `: ${error.toString()}`;
       }
       
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive',
-        duration: 10000,
-      });
-    } finally {
-      setIsSubmitting(false);
+      setUploadStatus(`Erreur: ${userMessage}`);
+      setUploadError(userMessage);
+      setUploadProgress(0);
+      setUploading(false);
     }
   };
 
-  if (loading) {
+  // Si l'utilisateur n'est pas connecté
+  if (user === null) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#FF8800]" />
-      </div>
-    );
-  }
-
-  // La redirection est gérée par useAuthRedirect
-  if (loading || !user) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#FF8800]" />
+      <div className="min-h-screen bg-background pb-24 flex items-center justify-center">
+        <div className="text-center p-4 max-w-md mx-auto">
+          {/* Logo encerclé */}
+          <div className="flex justify-center mb-6">
+            <div className="relative h-24 w-24 rounded-full border-4 border-[#FF8800] p-2 bg-white shadow-lg">
+              <Image
+                src="https://res.cloudinary.com/dy73hzkpm/image/upload/v1764155959/IMG_7775_cxdvvm.png"
+                alt="Ya Biso RDC Logo"
+                fill
+                className="rounded-full object-cover"
+              />
+            </div>
+          </div>
+          
+          <p className="text-lg font-headline mb-2 text-foreground">Connexion requise</p>
+          <p className="text-muted-foreground mb-6">
+            Vous devez être connecté pour créer une publication
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button 
+              onClick={() => router.push('/auth?redirect=/home/create')} 
+              className="bg-[#FF8800] hover:bg-[#FF8800]/90 text-white w-full"
+            >
+              Connectez-vous
+            </Button>
+            <Button 
+              onClick={() => router.push('/home')} 
+              variant="outline"
+              className="w-full"
+            >
+              Retour
+            </Button>
+          </div>
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+          <div className="pointer-events-auto">
+            <BottomNav />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <Header />
-      <main className="flex-1 overflow-y-auto pb-24 pt-32">
-        <div className="container mx-auto max-w-2xl px-4">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-[#003366] mb-6">
-                Créer une publication
-              </h1>
-            </div>
-
-            {/* Alerte si Firebase Storage n'est pas activé */}
-            {showStorageError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Firebase Storage non activé</AlertTitle>
-                <AlertDescription className="mt-2">
-                  <p className="mb-3">
-                    Firebase Storage doit être activé pour pouvoir publier des médias.
-                  </p>
-                  <a
-                    href="https://console.firebase.google.com/project/studio-3821305079-74f59/storage"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Activer Firebase Storage dans Firebase Console
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                  <p className="mt-3 text-xs">
-                    Étapes: Storage → Get Started → Choisir le mode → Sélectionner l'emplacement → Done
-                  </p>
-                </AlertDescription>
-              </Alert>
+    <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border">
+        <div className="container mx-auto max-w-2xl px-4 py-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => router.back()}
+            className="text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <h1 className="font-headline font-semibold text-lg text-foreground">
+            Créer une publication
+          </h1>
+          <Button
+            onClick={handleSubmit}
+            disabled={uploading || mediaFiles.length === 0}
+            className="bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Publication...
+              </>
+            ) : (
+              'Publier'
             )}
-
-            {/* Upload de médias */}
-            <div>
-              <Label htmlFor="media" className="text-lg font-semibold mb-2 block">
-                Médias
-              </Label>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {mediaFiles.map((mediaFile, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200">
-                    {mediaFile.type === 'image' ? (
-                      <Image
-                        src={mediaFile.preview}
-                        alt={`Preview ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={mediaFile.preview}
-                        className="w-full h-full object-cover"
-                        controls
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeMedia(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Label
-                  htmlFor="image-upload"
-                  className="flex-1 cursor-pointer flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#FF8800] transition-colors"
-                >
-                  <ImageIcon className="h-5 w-5" />
-                  <span>Ajouter des images</span>
-                  <Input
-                    id="image-upload"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </Label>
-                <Label
-                  htmlFor="video-upload"
-                  className="flex-1 cursor-pointer flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#FF8800] transition-colors"
-                >
-                  <Video className="h-5 w-5" />
-                  <span>Ajouter une vidéo</span>
-                  <Input
-                    id="video-upload"
-                    type="file"
-                    accept="video/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </Label>
-              </div>
-            </div>
-
-            {/* Caption */}
-            <div>
-              <Label htmlFor="caption" className="text-lg font-semibold mb-2 block">
-                Description
-              </Label>
-              <Textarea
-                id="caption"
-                placeholder="Partagez votre expérience..."
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-            </div>
-
-            {/* Location */}
-            <div>
-              <Label htmlFor="location" className="text-lg font-semibold mb-2 block">
-                Lieu (optionnel)
-              </Label>
-              <Input
-                id="location"
-                type="text"
-                placeholder="Ex: Kinshasa, Goma, Moanda..."
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
-
-            {/* Boutons */}
-            <div className="flex gap-4 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-                className="flex-1"
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || mediaFiles.length === 0}
-                className="flex-1 bg-[#FF8800] hover:bg-[#FF8800]/90"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publication...
-                  </>
-                ) : (
-                  'Publier'
-                )}
-              </Button>
-            </div>
-          </form>
+          </Button>
         </div>
-      </main>
-      <BottomNav />
+      </div>
 
-      {/* Dialog de progression d'upload */}
-      <Dialog open={showUploadDialog} onOpenChange={(open) => {
-        // Empêcher la fermeture pendant l'upload
-        if (!open && uploadProgress < 100) {
-          return;
-        }
-        setShowUploadDialog(open);
-      }}>
-        <DialogContent 
-          className="sm:max-w-md" 
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => {
-            if (uploadProgress < 100) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <DialogTitle className="text-center text-xl font-bold text-[#003366]">
-            Publication en cours...
-          </DialogTitle>
-          <div className="flex flex-col items-center justify-center space-y-4 py-6">
-            <CircularProgress value={uploadProgress} size={150} strokeWidth={10} />
-            <div className="space-y-2 text-center">
-              <p className="text-sm text-gray-600 font-medium">
-                {currentUploadIndex > 0 && mediaFiles.length > 1
-                  ? `Upload du média ${currentUploadIndex} sur ${mediaFiles.length}`
-                  : 'Upload des médias en cours...'}
-              </p>
-              <p className="text-xs text-gray-500">
-                {uploadProgress < 100 
-                  ? 'Veuillez patienter, ne fermez pas cette page'
-                  : 'Finalisation de la publication...'}
-              </p>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="container mx-auto max-w-2xl px-4 py-6 space-y-6">
+        {/* Zone de sélection de médias */}
+        <div className="space-y-4">
+          <Label className="text-foreground">Médias</Label>
+          <div className="grid grid-cols-3 gap-4">
+            {mediaFiles.map((file, index) => {
+              const preview = mediaPreviews[index];
+              
+              if (!file || !preview) {
+                return null;
+              }
+              
+              const isVideo = file.type.startsWith('video/');
+              const isImage = file.type.startsWith('image/');
+              
+              return (
+                <div 
+                  key={`media-${index}-${file.name}-${file.size}`} 
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-border bg-gray-100 dark:bg-gray-800"
+                >
+                  {isVideo ? (
+                    <video 
+                      src={preview} 
+                      className="w-full h-full object-cover"
+                      controls={false}
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : isImage ? (
+                    <img
+                      src={preview}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                      Type non supporté
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(index)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors z-10 shadow-lg"
+                    aria-label="Supprimer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+            
+            {mediaFiles.length < 10 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 hover:border-[#FF8800] transition-colors"
+              >
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Ajouter</span>
+              </button>
+            )}
+          </div>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </div>
+
+        {/* Caption */}
+        <div className="space-y-2">
+          <Label htmlFor="caption" className="text-foreground">
+            Description
+          </Label>
+          <Textarea
+            id="caption"
+            placeholder="Qu'avez-vous à partager ?"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            className="min-h-[120px] resize-none"
+            maxLength={500}
+          />
+          <p className="text-xs text-muted-foreground text-right">
+            {caption.length}/500
+          </p>
+        </div>
+
+        {/* Hashtags */}
+        <div className="space-y-2">
+          <Label htmlFor="hashtags" className="text-foreground flex items-center gap-2">
+            <Hash className="h-4 w-4" />
+            Hashtags (optionnel)
+          </Label>
+          <Input
+            id="hashtags"
+            placeholder="#RDC #Kinshasa #Voyage"
+            value={hashtags}
+            onChange={(e) => setHashtags(e.target.value)}
+            className="font-medium"
+          />
+          <p className="text-xs text-muted-foreground">
+            Séparez les hashtags par des espaces (ex: #RDC #Kinshasa #Voyage)
+          </p>
+        </div>
+
+        {/* Location */}
+        <div className="space-y-2">
+          <Label htmlFor="location" className="text-foreground">
+            Localisation (optionnel)
+          </Label>
+          <Input
+            id="location"
+            placeholder="Où êtes-vous ?"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+
+        {/* Barre de progression d'upload */}
+        {uploading && (
+          <div className="space-y-2 p-4 bg-muted rounded-lg border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-foreground">{uploadStatus}</span>
+              <span className="text-sm font-semibold text-[#FF8800]">{Math.round(uploadProgress)}%</span>
+            </div>
+            <Progress value={uploadProgress} className="h-2" />
+          </div>
+        )}
+
+        {/* Affichage des erreurs */}
+        {uploadError && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <X className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">
+                  Erreur lors de la publication
+                </h3>
+                <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                  {uploadError}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setUploadError(null);
+                      setUploading(false);
+                      setUploadProgress(0);
+                      setUploadStatus('');
+                    }}
+                    className="text-red-700 dark:text-red-300 border-red-300 dark:border-red-700"
+                  >
+                    Fermer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setUploadError(null);
+                      handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Réessayer
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </form>
+
+      {/* Bottom Nav */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+        <div className="pointer-events-auto">
+          <BottomNav />
+        </div>
+      </div>
     </div>
   );
 }

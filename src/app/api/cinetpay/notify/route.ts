@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
       currency: cpm_currency,
     });
 
-    // Vérifier la signature
-    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '';
+    // Configuration Cinetpay - Production (hardcodée dans le code)
+    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '188028715669283f0b5520b6.57905905';
     const signatureData = `${cpm_site_id}${cpm_trans_id}${cpm_amount}${CINETPAY_SECRET_KEY}`;
     const expectedSignature = crypto.createHash('sha256').update(signatureData).digest('hex');
 
@@ -76,4 +76,6 @@ export async function GET(request: NextRequest) {
   // Pour la vérification du webhook
   return NextResponse.json({ status: 'ok' });
 }
+
+
 

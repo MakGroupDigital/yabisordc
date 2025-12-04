@@ -16,8 +16,8 @@ Le fichier `.env.local` doit contenir :
 ```env
 NEXT_PUBLIC_PAYPAL_MODE=sandbox
 NEXT_PUBLIC_PAYPAL_API_URL=https://api-m.sandbox.paypal.com
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=AcjvyGe5w5ASvHcOwaQDXHi1BjNUR3NsT8bLWCLDWgyZCmTJAluAwZ8Gxrlo8qNaGPsn7pLzbTFTSXnl
-NEXT_PUBLIC_PAYPAL_CLIENT_SECRET=EAud2skyaLTJbDnTeXrJUvPDZdKzSZfaSea_YkqaURUf9HVRLQ1iIpotXTGwqHBtSljc_TABI52oMgVc
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=votre_client_id_ici
+NEXT_PUBLIC_PAYPAL_CLIENT_SECRET=votre_client_secret_ici
 ```
 
 ### 3. REDÉMARRER le serveur de développement

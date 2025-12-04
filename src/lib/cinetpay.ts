@@ -3,11 +3,11 @@
  * Documentation: https://docs.cinetpay.com
  */
 
-// Configuration Cinetpay
-const CINETPAY_API_URL = process.env.NEXT_PUBLIC_CINETPAY_API_URL || 'https://api.cinetpay.com';
-const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '';
-const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '';
-const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '';
+// Configuration Cinetpay - Production
+const CINETPAY_API_URL = process.env.NEXT_PUBLIC_CINETPAY_API_URL || 'https://api-checkout.cinetpay.com';
+const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '164212755567a4f2ee234470.03998181';
+const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '105907138';
+const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '188028715669283f0b5520b6.57905905';
 
 export interface CinetpayPaymentRequest {
   amount: number;

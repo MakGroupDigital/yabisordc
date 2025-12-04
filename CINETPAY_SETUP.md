@@ -2,11 +2,11 @@
 
 ## ✅ Configuration terminée
 
-Vos clés Cinetpay ont été configurées dans `.env.local` :
+Configurez vos clés Cinetpay dans `.env.local` :
 
-- **API Key**: `164212755567a4f2ee234470.03998181`
-- **Site ID**: `105907138`
-- **Secret Key**: `188028715669283f0b5520b6.57905905`
+- **API Key**: `votre_api_key_ici`
+- **Site ID**: `votre_site_id_ici`
+- **Secret Key**: `votre_secret_key_ici`
 - **API URL**: `https://api-checkout.cinetpay.com`
 
 ## 📚 Documentation officielle

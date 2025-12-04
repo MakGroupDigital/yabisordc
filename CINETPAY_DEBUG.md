@@ -22,9 +22,9 @@ cat .env.local
 
 # Les variables doivent être :
 NEXT_PUBLIC_CINETPAY_API_URL=https://api-checkout.cinetpay.com
-NEXT_PUBLIC_CINETPAY_API_KEY=164212755567a4f2ee234470.03998181
-NEXT_PUBLIC_CINETPAY_SITE_ID=105907138
-NEXT_PUBLIC_CINETPAY_SECRET_KEY=188028715669283f0b5520b6.57905905
+NEXT_PUBLIC_CINETPAY_API_KEY=votre_api_key_ici
+NEXT_PUBLIC_CINETPAY_SITE_ID=votre_site_id_ici
+NEXT_PUBLIC_CINETPAY_SECRET_KEY=votre_secret_key_ici
 ```
 
 **Important** : Redémarrer le serveur après modification de `.env.local` :
@@ -122,4 +122,6 @@ Si vous ne voulez pas tester avec l'API réelle, vous pouvez temporairement dés
 3. **Vérifier que le serveur a été redémarré** après modification de `.env.local`
 4. **Vérifier la devise** dans votre dashboard Cinetpay
 5. **Vérifier les URLs** (pas de localhost)
+
+
 

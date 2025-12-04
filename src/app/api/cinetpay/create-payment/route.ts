@@ -34,22 +34,13 @@ export async function POST(request: NextRequest) {
       notifyUrl,
     } = body;
 
-    // Récupérer les variables d'environnement
-    // URL selon la documentation Cinetpay: https://api-checkout.cinetpay.com/v2/payment
+    // Configuration Cinetpay - Production (hardcodée dans le code)
     const CINETPAY_API_URL = process.env.NEXT_PUBLIC_CINETPAY_API_URL || 'https://api-checkout.cinetpay.com';
-    const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '';
-    const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '';
-    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '';
+    const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '164212755567a4f2ee234470.03998181';
+    const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '105907138';
+    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '188028715669283f0b5520b6.57905905';
 
-    if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Configuration Cinetpay manquante. Vérifiez vos variables d\'environnement.' 
-        },
-        { status: 400 }
-      );
-    }
+    // Les clés sont maintenant hardcodées, cette vérification ne devrait plus échouer
 
     // Préparer le corps de la requête pour Cinetpay
     // Format selon la documentation Cinetpay: https://docs.cinetpay.com

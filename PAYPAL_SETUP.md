@@ -17,10 +17,10 @@ NEXT_PUBLIC_PAYPAL_MODE=sandbox
 NEXT_PUBLIC_PAYPAL_API_URL=https://api-m.sandbox.paypal.com
 
 # Client ID (fourni par PayPal)
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=AcjvyGe5w5ASvHcOwaQDXHi1BjNUR3NsT8bLWCLDWgyZCmTJAluAwZ8Gxrlo8qNaGPsn7pLzbTFTSXnl
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=votre_client_id_ici
 
 # Client Secret (fourni par PayPal)
-NEXT_PUBLIC_PAYPAL_CLIENT_SECRET=EAud2skyaLTJbDnTeXrJUvPDZdKzSZfaSea_YkqaURUf9HVRLQ1iIpotXTGwqHBtSljc_TABI52oMgVc
+NEXT_PUBLIC_PAYPAL_CLIENT_SECRET=votre_client_secret_ici
 ```
 
 ## Important
@@ -43,4 +43,6 @@ Pour passer en production :
 
 - Documentation API: https://developer.paypal.com/docs/api/orders/v2/
 - Dashboard PayPal: https://developer.paypal.com/dashboard/
+
+
 

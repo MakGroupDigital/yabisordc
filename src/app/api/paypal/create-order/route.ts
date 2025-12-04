@@ -19,32 +19,11 @@ export async function POST(request: NextRequest) {
       cancelUrl,
     } = body;
 
-    // Récupérer les variables d'environnement
-    const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
-    const PAYPAL_CLIENT_SECRET = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET || '';
+    // Configuration PayPal - Production (hardcodée dans le code)
+    const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AcjvyGe5w5ASvHcOwaQDXHi1BjNUR3NsT8bLWCLDWgyZCmTJAluAwZ8Gxrlo8qNaGPsn7pLzbTFTSXnl';
+    const PAYPAL_CLIENT_SECRET = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET || 'EAud2skyaLTJbDnTeXrJUvPDZdKzSZfaSea_YkqaURUf9HVRLQ1iIpotXTGwqHBtSljc_TABI52oMgVc';
     const PAYPAL_API_URL = process.env.NEXT_PUBLIC_PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
-    const PAYPAL_MODE = process.env.NEXT_PUBLIC_PAYPAL_MODE || 'sandbox'; // sandbox ou production
-
-    if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
-      console.error('❌ Configuration PayPal manquante côté serveur !');
-      console.error('💡 Variables requises dans .env.local:');
-      console.error('   NEXT_PUBLIC_PAYPAL_CLIENT_ID');
-      console.error('   NEXT_PUBLIC_PAYPAL_CLIENT_SECRET');
-      console.error('   NEXT_PUBLIC_PAYPAL_API_URL (optionnel, défaut: sandbox)');
-      
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Configuration PayPal manquante. Ajoutez NEXT_PUBLIC_PAYPAL_CLIENT_ID et NEXT_PUBLIC_PAYPAL_CLIENT_SECRET dans .env.local et redémarrez le serveur de développement.',
-          details: {
-            hasClientId: !!PAYPAL_CLIENT_ID,
-            hasClientSecret: !!PAYPAL_CLIENT_SECRET,
-            apiUrl: PAYPAL_API_URL,
-          },
-        },
-        { status: 400 }
-      );
-    }
+    const PAYPAL_MODE = process.env.NEXT_PUBLIC_PAYPAL_MODE || 'sandbox';
     
     console.log('✅ Configuration PayPal détectée:', {
       hasClientId: !!PAYPAL_CLIENT_ID,

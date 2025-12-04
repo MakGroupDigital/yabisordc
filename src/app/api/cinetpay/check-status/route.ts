@@ -16,21 +16,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Récupérer les variables d'environnement
+    // Configuration Cinetpay - Production (hardcodée dans le code)
     const CINETPAY_API_URL = process.env.NEXT_PUBLIC_CINETPAY_API_URL || 'https://api.cinetpay.com';
-    const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '';
-    const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '';
-    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '';
-
-    if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID || !CINETPAY_SECRET_KEY) {
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Configuration Cinetpay manquante' 
-        },
-        { status: 400 }
-      );
-    }
+    const CINETPAY_API_KEY = process.env.NEXT_PUBLIC_CINETPAY_API_KEY || '164212755567a4f2ee234470.03998181';
+    const CINETPAY_SITE_ID = process.env.NEXT_PUBLIC_CINETPAY_SITE_ID || '105907138';
+    const CINETPAY_SECRET_KEY = process.env.NEXT_PUBLIC_CINETPAY_SECRET_KEY || '188028715669283f0b5520b6.57905905';
 
     // Générer la signature pour la vérification
     const signatureData = `${CINETPAY_SITE_ID}${transactionId}${CINETPAY_SECRET_KEY}`;
@@ -97,4 +87,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
 

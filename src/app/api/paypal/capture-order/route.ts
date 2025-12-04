@@ -15,20 +15,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Récupérer les variables d'environnement
-    const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
-    const PAYPAL_CLIENT_SECRET = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET || '';
+    // Configuration PayPal - Production (hardcodée dans le code)
+    const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AcjvyGe5w5ASvHcOwaQDXHi1BjNUR3NsT8bLWCLDWgyZCmTJAluAwZ8Gxrlo8qNaGPsn7pLzbTFTSXnl';
+    const PAYPAL_CLIENT_SECRET = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET || 'EAud2skyaLTJbDnTeXrJUvPDZdKzSZfaSea_YkqaURUf9HVRLQ1iIpotXTGwqHBtSljc_TABI52oMgVc';
     const PAYPAL_API_URL = process.env.NEXT_PUBLIC_PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
-
-    if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Configuration PayPal manquante' 
-        },
-        { status: 400 }
-      );
-    }
 
     // Obtenir un access token
     const tokenResponse = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
@@ -103,4 +93,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
 

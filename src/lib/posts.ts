@@ -265,6 +265,12 @@ async function tryGetPostsFromCollection(collectionName: string, limitCount?: nu
       stack: error.stack
     });
     
+    // Si c'est une erreur de permissions, ne pas bloquer - les posts publics peuvent être lus
+    if (error.code === 'permission-denied') {
+      console.warn(`⚠️ Permissions insuffisantes pour '${collectionName}'. Vérifiez les règles Firestore pour permettre la lecture publique.`);
+      return [];
+    }
+    
     // Si c'est un timeout ou un problème de connexion, retourner un tableau vide
     // L'application fonctionnera en mode offline
     if (error.message?.includes('Timeout') || error.code === 'unavailable' || error.code === 'deadline-exceeded') {
@@ -470,6 +476,17 @@ export function subscribeToPosts(
       }, (error: any) => {
         console.error(`❌ Erreur lors de l'écoute de '${collectionName}':`, error);
         console.error('Code:', error.code, 'Message:', error.message);
+        
+        // Si c'est une erreur de permissions, ne pas bloquer l'application
+        // Les utilisateurs non connectés peuvent toujours voir les posts publics
+        if (error.code === 'permission-denied') {
+          console.warn(`⚠️ Permissions insuffisantes pour '${collectionName}'. Vérifiez les règles Firestore.`);
+          // Ne pas appeler callback([]) pour éviter de vider les posts existants
+          // L'utilisateur verra les posts déjà chargés
+          return;
+        }
+        
+        // Pour les autres erreurs, continuer normalement
         callback([]);
       });
       

@@ -95,9 +95,28 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             if (currentUser) {
-                checkLikeStatus(currentUser.uid);
-                checkBookmarkStatus(currentUser.uid);
-                checkFollowStatus(currentUser.uid);
+                // Vérifier les statuts uniquement si l'utilisateur est connecté
+                checkLikeStatus(currentUser.uid).catch(err => {
+                    // Ignorer les erreurs de permissions silencieusement
+                    if (err.code !== 'permission-denied') {
+                        console.error('Erreur vérification like:', err);
+                    }
+                });
+                checkBookmarkStatus(currentUser.uid).catch(err => {
+                    if (err.code !== 'permission-denied') {
+                        console.error('Erreur vérification bookmark:', err);
+                    }
+                });
+                checkFollowStatus(currentUser.uid).catch(err => {
+                    if (err.code !== 'permission-denied') {
+                        console.error('Erreur vérification follow:', err);
+                    }
+                });
+            } else {
+                // Réinitialiser les états si l'utilisateur se déconnecte
+                setIsLiked(false);
+                setIsBookmarked(false);
+                setIsFollowing(false);
             }
         });
         return () => unsubscribe();
@@ -124,6 +143,14 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 });
             });
             setComments(commentsData.reverse()); // Plus ancien en premier
+        }, (error: any) => {
+            // Gérer les erreurs de permissions gracieusement
+            if (error.code === 'permission-denied') {
+                console.warn('Permissions insuffisantes pour lire les commentaires');
+                setComments([]);
+                return;
+            }
+            console.error('Erreur chargement commentaires:', error);
         });
 
         return () => unsubscribe();
@@ -131,35 +158,53 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
 
     // Vérifier si l'utilisateur a déjà liké
     const checkLikeStatus = async (userId: string) => {
+        if (!userId) return;
         try {
             const likeRef = doc(db, 'posts', post.id, 'likes', userId);
             const likeSnap = await getDoc(likeRef);
             setIsLiked(likeSnap.exists());
-        } catch (error) {
+        } catch (error: any) {
+            // Ignorer les erreurs de permissions pour les utilisateurs non connectés
+            if (error.code === 'permission-denied') {
+                setIsLiked(false);
+                return;
+            }
             console.error('Erreur vérification like:', error);
         }
     };
 
     // Vérifier si le post est sauvegardé
     const checkBookmarkStatus = async (userId: string) => {
+        if (!userId) return;
         try {
             const favoriteRef = doc(db, 'favorites', `${userId}_${post.id}`);
             const favoriteSnap = await getDoc(favoriteRef);
             setIsBookmarked(favoriteSnap.exists());
-        } catch (error) {
+        } catch (error: any) {
+            // Ignorer les erreurs de permissions pour les utilisateurs non connectés
+            if (error.code === 'permission-denied') {
+                setIsBookmarked(false);
+                return;
+            }
             console.error('Erreur vérification bookmark:', error);
         }
     };
 
     // Vérifier si l'utilisateur suit l'auteur
     const checkFollowStatus = async (userId: string) => {
+        if (!userId) return;
         try {
             if (post.authorId && userId !== post.authorId) {
                 const followRef = doc(db, 'users', userId, 'following', post.authorId);
                 const followSnap = await getDoc(followRef);
                 setIsFollowing(followSnap.exists());
             }
-        } catch (error) {
+        } catch (error: any) {
+            // Ignorer les erreurs de permissions pour les utilisateurs non connectés
+            if (error.code === 'permission-denied') {
+                setIsFollowing(false);
+                return;
+            }
             console.error('Erreur vérification follow:', error);
         }
     };
@@ -428,29 +473,66 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         
         if (method === 'copy') {
             try {
-                await navigator.clipboard.writeText(postUrl);
-                toast({
-                    title: "Lien copié",
-                    description: "Le lien a été copié dans le presse-papiers",
-                });
+                // Essayer d'abord avec l'API Clipboard moderne
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(postUrl);
+                    toast({
+                        title: "Lien copié",
+                        description: "Le lien a été copié dans le presse-papiers",
+                    });
+                } else {
+                    // Fallback pour les navigateurs plus anciens
+                    const textArea = document.createElement('textarea');
+                    textArea.value = postUrl;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            toast({
+                                title: "Lien copié",
+                                description: "Le lien a été copié dans le presse-papiers",
+                            });
+                        } else {
+                            throw new Error('execCommand failed');
+                        }
+                    } catch (err) {
+                        // Dernier recours : afficher le lien pour copie manuelle
+                        toast({
+                            title: "Copiez le lien",
+                            description: postUrl,
+                            variant: "default",
+                        });
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                }
             } catch (error) {
                 console.error('Erreur copie:', error);
+                // Afficher le lien pour copie manuelle
                 toast({
-                    title: "Erreur",
-                    description: "Impossible de copier le lien",
-                    variant: "destructive",
+                    title: "Copiez le lien",
+                    description: postUrl,
+                    variant: "default",
                 });
             }
         } else if (method === 'native' && navigator.share) {
             try {
                 await navigator.share({
                     title: `Publication de ${post.author}`,
-                    text: post.caption,
+                    text: post.caption || `Découvrez cette publication de ${post.author}`,
                     url: postUrl,
                 });
             } catch (error) {
                 if ((error as Error).name !== 'AbortError') {
                     console.error('Erreur partage:', error);
+                    // Si le partage natif échoue, proposer la copie
+                    handleShare('copy');
                 }
             }
         }
@@ -458,34 +540,49 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
     };
 
     // Gestion du swipe horizontal - Améliorée
-    const minSwipeDistance = 50;
+    const minSwipeDistance = 30; // Distance réduite pour plus de sensibilité
     const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState(0);
 
     // Touch events
     const onTouchStart = (e: React.TouchEvent) => {
         if (post.media.length <= 1) return;
+        const touch = e.targetTouches[0];
         setTouchEnd(null);
         setTouchStart({
-            x: e.targetTouches[0].clientX,
-            y: e.targetTouches[0].clientY,
+            x: touch.clientX,
+            y: touch.clientY,
         });
         setIsDragging(false);
+        setDragOffset(0);
     };
 
     const onTouchMove = (e: React.TouchEvent) => {
         if (!touchStart || post.media.length <= 1) return;
         
+        const touch = e.targetTouches[0];
         const currentTouch = {
-            x: e.targetTouches[0].clientX,
-            y: e.targetTouches[0].clientY,
+            x: touch.clientX,
+            y: touch.clientY,
         };
         
-        const diffX = Math.abs(touchStart.x - currentTouch.x);
+        const diffX = touchStart.x - currentTouch.x;
         const diffY = Math.abs(touchStart.y - currentTouch.y);
         
-        if (diffX > diffY && diffX > 10) {
+        // Si le mouvement horizontal est plus important que le vertical
+        if (Math.abs(diffX) > diffY && Math.abs(diffX) > 5) {
             setIsSwipingHorizontal(true);
             setIsDragging(true);
+            
+            // Calculer l'offset de drag pour un feedback visuel
+            const maxOffset = window.innerWidth;
+            const clampedOffset = Math.max(
+                -maxOffset * (post.media.length - 1 - currentMediaIndex),
+                Math.min(maxOffset * currentMediaIndex, diffX)
+            );
+            setDragOffset(clampedOffset);
+            
+            // Empêcher le scroll vertical pendant le swipe horizontal
             e.preventDefault();
         }
         
@@ -498,20 +595,21 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
             setIsDragging(false);
             setTouchStart(null);
             setTouchEnd(null);
+            setDragOffset(0);
             return;
         }
         
         const diffX = touchStart.x - touchEnd.x;
         const diffY = Math.abs(touchStart.y - touchEnd.y);
         
+        // Vérifier si c'est un swipe horizontal valide
         if (Math.abs(diffX) > diffY && Math.abs(diffX) > minSwipeDistance) {
-            const isLeftSwipe = diffX > 0;
-            const isRightSwipe = diffX < 0;
+            const isLeftSwipe = diffX > 0; // Swipe vers la gauche (index suivant)
+            const isRightSwipe = diffX < 0; // Swipe vers la droite (index précédent)
 
             if (isLeftSwipe && currentMediaIndex < post.media.length - 1) {
                 setCurrentMediaIndex(prev => Math.min(prev + 1, post.media.length - 1));
-            }
-            if (isRightSwipe && currentMediaIndex > 0) {
+            } else if (isRightSwipe && currentMediaIndex > 0) {
                 setCurrentMediaIndex(prev => Math.max(prev - 1, 0));
             }
         }
@@ -520,16 +618,19 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         setIsDragging(false);
         setTouchStart(null);
         setTouchEnd(null);
+        setDragOffset(0);
     };
 
-    // Mouse events
+    // Mouse events (pour desktop)
     const onMouseDown = (e: React.MouseEvent) => {
         if (post.media.length <= 1) return;
+        e.preventDefault();
         setTouchStart({
             x: e.clientX,
             y: e.clientY,
         });
         setIsDragging(false);
+        setDragOffset(0);
     };
 
     const onMouseMove = (e: React.MouseEvent) => {
@@ -540,12 +641,20 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
             y: e.clientY,
         };
         
-        const diffX = Math.abs(touchStart.x - currentTouch.x);
+        const diffX = touchStart.x - currentTouch.x;
         const diffY = Math.abs(touchStart.y - currentTouch.y);
         
-        if (diffX > diffY && diffX > 10) {
+        if (Math.abs(diffX) > diffY && Math.abs(diffX) > 5) {
             setIsSwipingHorizontal(true);
             setIsDragging(true);
+            
+            // Calculer l'offset de drag pour un feedback visuel
+            const maxOffset = window.innerWidth;
+            const clampedOffset = Math.max(
+                -maxOffset * (post.media.length - 1 - currentMediaIndex),
+                Math.min(maxOffset * currentMediaIndex, diffX)
+            );
+            setDragOffset(clampedOffset);
         }
         
         setTouchEnd(currentTouch);
@@ -557,6 +666,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
             setIsDragging(false);
             setTouchStart(null);
             setTouchEnd(null);
+            setDragOffset(0);
             return;
         }
         
@@ -569,8 +679,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
 
             if (isLeftSwipe && currentMediaIndex < post.media.length - 1) {
                 setCurrentMediaIndex(prev => Math.min(prev + 1, post.media.length - 1));
-            }
-            if (isRightSwipe && currentMediaIndex > 0) {
+            } else if (isRightSwipe && currentMediaIndex > 0) {
                 setCurrentMediaIndex(prev => Math.max(prev - 1, 0));
             }
         }
@@ -579,6 +688,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         setIsDragging(false);
         setTouchStart(null);
         setTouchEnd(null);
+        setDragOffset(0);
     };
 
     // Fonction pour compter une vue
@@ -592,6 +702,11 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
             setViewsCount(prev => prev + 1);
             setHasViewed(true);
         } catch (error: any) {
+            // Ignorer les erreurs de permissions pour les utilisateurs non connectés
+            if (error.code === 'permission-denied') {
+                // Ne pas compter la vue si l'utilisateur n'est pas connecté
+                return;
+            }
             console.error('Erreur comptage vue:', error);
             // Ne pas afficher d'erreur pour les vues, c'est silencieux
         }
@@ -695,8 +810,9 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                     isDragging && "transition-none"
                 )}
                 style={{
-                    transform: `translateX(-${currentMediaIndex * 100}%)`,
-                    cursor: post.media.length > 1 ? 'grab' : 'default',
+                    transform: `translateX(calc(-${currentMediaIndex * 100}% + ${dragOffset}px))`,
+                    cursor: post.media.length > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                    touchAction: post.media.length > 1 ? 'pan-y pinch-zoom' : 'auto',
                 }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}

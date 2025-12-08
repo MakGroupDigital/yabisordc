@@ -84,6 +84,7 @@ export default function ProfilePage() {
     followers: 0,
     following: 0,
     favorites: 0,
+    totalLikes: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -173,11 +174,15 @@ export default function ProfilePage() {
         const favoritesSnapshot = await getDocs(favoritesQuery);
         const favoritesCount = favoritesSnapshot.size;
 
+        // 4. Total des likes de tous les posts de l'utilisateur
+        const totalLikes = userPosts.reduce((sum, post) => sum + (post.likes || 0), 0);
+
         setStats({
           posts: userPosts.length,
           followers: followersCount,
           following: followingCount,
           favorites: favoritesCount,
+          totalLikes: totalLikes,
         });
       } catch (error) {
         console.error('Erreur lors du chargement des statistiques:', error);
@@ -316,8 +321,8 @@ export default function ProfilePage() {
             
             {/* Statistiques - Design moderne */}
             {loadingStats ? (
-              <div className="grid grid-cols-4 gap-4 w-full">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="grid grid-cols-5 gap-2 w-full">
+                {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="flex flex-col items-center">
                     <Skeleton className="h-8 w-12 mb-2 bg-gray-800" />
                     <Skeleton className="h-3 w-16 bg-gray-800" />
@@ -325,7 +330,7 @@ export default function ProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-4 w-full">
+              <div className="grid grid-cols-5 gap-2 w-full">
                 {/* Publications */}
                 <div className="flex flex-col items-center group cursor-pointer">
                   <div className="flex items-center gap-1 mb-1">
@@ -357,6 +362,17 @@ export default function ProfilePage() {
                     </span>
                   </div>
                   <span className="text-xs text-gray-400 font-medium">Abonnements</span>
+                </div>
+
+                {/* Total Likes */}
+                <div className="flex flex-col items-center group cursor-pointer">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Heart className="h-4 w-4 text-red-500" />
+                    <span className="text-xl font-bold text-white group-hover:text-red-500 transition-colors">
+                      {formatCount(stats.totalLikes)}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400 font-medium">Likes</span>
                 </div>
 
                 {/* Favoris */}

@@ -36,7 +36,7 @@ export default function CreatePostPage() {
     return () => unsubscribe();
   }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter(file => 
       file.type.startsWith('image/') || file.type.startsWith('video/')
@@ -49,21 +49,46 @@ export default function CreatePostPage() {
     
     if (filesToAdd.length === 0) return;
 
-    // Créer les previews avec URL.createObjectURL (plus simple et fiable)
+    // Vérifier la taille des fichiers
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    const oversizedFiles = filesToAdd.filter(f => f.size > MAX_FILE_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+      alert(`Certains fichiers sont trop volumineux (max 100MB). Veuillez les compresser avant de les uploader.`);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Traiter les fichiers (vérification de taille)
+    const processedFiles: File[] = [];
     const newPreviews: string[] = [];
-    filesToAdd.forEach(file => {
+    
+    for (const file of filesToAdd) {
       try {
+        // Vérifier la taille des vidéos
+        if (file.type.startsWith('video/')) {
+          const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+          if (file.size > MAX_VIDEO_SIZE) {
+            alert(`La vidéo "${file.name}" est trop volumineuse (${(file.size / 1024 / 1024).toFixed(1)}MB). Veuillez utiliser une vidéo de moins de 50MB.`);
+            continue;
+          }
+        }
+        
+        processedFiles.push(file);
         const objectURL = URL.createObjectURL(file);
         newPreviews.push(objectURL);
       } catch (error) {
-        console.error('Erreur lors de la création de la preview:', error);
+        console.error('Erreur lors du traitement du fichier:', error);
       }
-    });
+    }
 
-    // Mettre à jour les états seulement si des previews ont été créées
-    if (newPreviews.length > 0) {
-      setMediaFiles(prev => [...prev, ...filesToAdd]);
+    // Mettre à jour les états seulement si des fichiers ont été traités
+    if (processedFiles.length > 0) {
+      setMediaFiles(prev => [...prev, ...processedFiles]);
       setMediaPreviews(prev => [...prev, ...newPreviews]);
+      setUploadStatus('');
     }
     
     // Reset input

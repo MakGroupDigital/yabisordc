@@ -13,6 +13,9 @@ const firebaseConfig = {
   appId: "1:832016559824:web:7abf29b6ab35547950f8d5"
 };
 
+// Clé reCAPTCHA Enterprise pour Phone Authentication
+export const RECAPTCHA_SITE_KEY = "6LcmLSUsAAAAAOMudj7WEMUnOvHoRZo0JyORN3ia";
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 

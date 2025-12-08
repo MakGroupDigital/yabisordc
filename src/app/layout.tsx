@@ -1,4 +1,5 @@
 import type {Metadata} from 'next';
+import Script from 'next/script';
 import { Toaster } from "@/components/ui/toaster";
 import { SoundProvider } from "@/contexts/sound-context";
 import { GlobalLoader } from "@/components/loading/global-loader";
@@ -47,6 +48,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={`${inter.variable} ${montserrat.variable} h-full bg-background`}>
+      <head>
+        {/* reCAPTCHA Enterprise pour Firebase Phone Authentication */}
+        <Script
+          src="https://www.google.com/recaptcha/enterprise.js?render=6LcmLSUsAAAAAOMudj7WEMUnOvHoRZo0JyORN3ia"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className="font-body antialiased h-full">
         <SoundProvider>
           <GlobalLoader />

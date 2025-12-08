@@ -539,9 +539,10 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
     };
 
     // Gestion du swipe horizontal - Améliorée
-    const minSwipeDistance = 30; // Distance réduite pour plus de sensibilité
+    const minSwipeDistance = 50; // Distance minimale pour déclencher le swipe
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState(0);
+    const isDraggingRef = useRef(false);
 
     // Touch events
     const onTouchStart = (e: React.TouchEvent) => {
@@ -554,6 +555,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         });
         setIsDragging(false);
         setDragOffset(0);
+        isDraggingRef.current = false;
     };
 
     const onTouchMove = (e: React.TouchEvent) => {
@@ -569,9 +571,12 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         const diffY = Math.abs(touchStart.y - currentTouch.y);
         
         // Si le mouvement horizontal est plus important que le vertical
-        if (Math.abs(diffX) > diffY && Math.abs(diffX) > 5) {
-            setIsSwipingHorizontal(true);
-            setIsDragging(true);
+        if (Math.abs(diffX) > diffY && Math.abs(diffX) > 10) {
+            if (!isDraggingRef.current) {
+                setIsSwipingHorizontal(true);
+                setIsDragging(true);
+                isDraggingRef.current = true;
+            }
             
             // Calculer l'offset de drag pour un feedback visuel
             const maxOffset = window.innerWidth;
@@ -583,18 +588,30 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
             
             // Empêcher le scroll vertical pendant le swipe horizontal
             e.preventDefault();
+            e.stopPropagation();
         }
         
         setTouchEnd(currentTouch);
     };
 
     const onTouchEnd = () => {
-        if (!touchStart || !touchEnd || post.media.length <= 1) {
+        if (!touchStart || post.media.length <= 1) {
             setIsSwipingHorizontal(false);
             setIsDragging(false);
             setTouchStart(null);
             setTouchEnd(null);
             setDragOffset(0);
+            isDraggingRef.current = false;
+            return;
+        }
+        
+        if (!touchEnd) {
+            setIsSwipingHorizontal(false);
+            setIsDragging(false);
+            setTouchStart(null);
+            setTouchEnd(null);
+            setDragOffset(0);
+            isDraggingRef.current = false;
             return;
         }
         
@@ -618,77 +635,131 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
         setTouchStart(null);
         setTouchEnd(null);
         setDragOffset(0);
+        isDraggingRef.current = false;
     };
 
-    // Mouse events (pour desktop)
-    const onMouseDown = (e: React.MouseEvent) => {
+    // Mouse events (pour desktop) - Utiliser des listeners globaux
+    useEffect(() => {
         if (post.media.length <= 1) return;
-        e.preventDefault();
-        setTouchStart({
-            x: e.clientX,
-            y: e.clientY,
-        });
-        setIsDragging(false);
-        setDragOffset(0);
-    };
 
-    const onMouseMove = (e: React.MouseEvent) => {
-        if (!touchStart || post.media.length <= 1) return;
-        
-        const currentTouch = {
-            x: e.clientX,
-            y: e.clientY,
-        };
-        
-        const diffX = touchStart.x - currentTouch.x;
-        const diffY = Math.abs(touchStart.y - currentTouch.y);
-        
-        if (Math.abs(diffX) > diffY && Math.abs(diffX) > 5) {
-            setIsSwipingHorizontal(true);
-            setIsDragging(true);
+        let startPos: { x: number; y: number } | null = null;
+        let endPos: { x: number; y: number } | null = null;
+
+        const handleMouseDown = (e: MouseEvent) => {
+            // Vérifier si le clic est sur le container media
+            const container = mediaContainerRef.current;
+            if (!container || !container.contains(e.target as Node)) return;
             
-            // Calculer l'offset de drag pour un feedback visuel
-            const maxOffset = window.innerWidth;
-            const clampedOffset = Math.max(
-                -maxOffset * (post.media.length - 1 - currentMediaIndex),
-                Math.min(maxOffset * currentMediaIndex, diffX)
-            );
-            setDragOffset(clampedOffset);
-        }
-        
-        setTouchEnd(currentTouch);
-    };
+            // Ignorer si c'est un bouton ou élément interactif
+            const target = e.target as HTMLElement;
+            if (target.closest('button') || target.closest('a') || target.closest('[role="button"]')) {
+                return;
+            }
 
-    const onMouseUp = () => {
-        if (!touchStart || !touchEnd || post.media.length <= 1) {
+            e.preventDefault();
+            e.stopPropagation();
+            startPos = {
+                x: e.clientX,
+                y: e.clientY,
+            };
+            endPos = null;
+            setTouchStart(startPos);
+            setIsDragging(false);
+            setDragOffset(0);
+            isDraggingRef.current = false;
+        };
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!startPos || post.media.length <= 1) return;
+            
+            const currentPos = {
+                x: e.clientX,
+                y: e.clientY,
+            };
+            
+            const diffX = startPos.x - currentPos.x;
+            const diffY = Math.abs(startPos.y - currentPos.y);
+            
+            if (Math.abs(diffX) > diffY && Math.abs(diffX) > 10) {
+                if (!isDraggingRef.current) {
+                    setIsSwipingHorizontal(true);
+                    setIsDragging(true);
+                    isDraggingRef.current = true;
+                }
+                
+                // Calculer l'offset de drag pour un feedback visuel
+                const maxOffset = window.innerWidth;
+                const clampedOffset = Math.max(
+                    -maxOffset * (post.media.length - 1 - currentMediaIndex),
+                    Math.min(maxOffset * currentMediaIndex, diffX)
+                );
+                setDragOffset(clampedOffset);
+            }
+            
+            endPos = currentPos;
+            setTouchEnd(endPos);
+        };
+
+        const handleMouseUp = () => {
+            if (!startPos || post.media.length <= 1) {
+                setIsSwipingHorizontal(false);
+                setIsDragging(false);
+                setTouchStart(null);
+                setTouchEnd(null);
+                setDragOffset(0);
+                isDraggingRef.current = false;
+                startPos = null;
+                endPos = null;
+                return;
+            }
+            
+            if (!endPos) {
+                setIsSwipingHorizontal(false);
+                setIsDragging(false);
+                setTouchStart(null);
+                setTouchEnd(null);
+                setDragOffset(0);
+                isDraggingRef.current = false;
+                startPos = null;
+                endPos = null;
+                return;
+            }
+            
+            const diffX = startPos.x - endPos.x;
+            const diffY = Math.abs(startPos.y - endPos.y);
+            
+            if (Math.abs(diffX) > diffY && Math.abs(diffX) > minSwipeDistance) {
+                const isLeftSwipe = diffX > 0;
+                const isRightSwipe = diffX < 0;
+
+                if (isLeftSwipe && currentMediaIndex < post.media.length - 1) {
+                    setCurrentMediaIndex(prev => Math.min(prev + 1, post.media.length - 1));
+                } else if (isRightSwipe && currentMediaIndex > 0) {
+                    setCurrentMediaIndex(prev => Math.max(prev - 1, 0));
+                }
+            }
+
             setIsSwipingHorizontal(false);
             setIsDragging(false);
             setTouchStart(null);
             setTouchEnd(null);
             setDragOffset(0);
-            return;
-        }
-        
-        const diffX = touchStart.x - touchEnd.x;
-        const diffY = Math.abs(touchStart.y - touchEnd.y);
-        
-        if (Math.abs(diffX) > diffY && Math.abs(diffX) > minSwipeDistance) {
-            const isLeftSwipe = diffX > 0;
-            const isRightSwipe = diffX < 0;
+            isDraggingRef.current = false;
+            startPos = null;
+            endPos = null;
+        };
 
-            if (isLeftSwipe && currentMediaIndex < post.media.length - 1) {
-                setCurrentMediaIndex(prev => Math.min(prev + 1, post.media.length - 1));
-            } else if (isRightSwipe && currentMediaIndex > 0) {
-                setCurrentMediaIndex(prev => Math.max(prev - 1, 0));
-            }
-        }
+        // Ajouter les listeners globaux
+        document.addEventListener('mousedown', handleMouseDown, { passive: false });
+        document.addEventListener('mousemove', handleMouseMove, { passive: false });
+        document.addEventListener('mouseup', handleMouseUp, { passive: false });
 
-        setIsSwipingHorizontal(false);
-        setIsDragging(false);
-        setTouchStart(null);
-        setTouchEnd(null);
-        setDragOffset(0);
-    };
+        return () => {
+            document.removeEventListener('mousedown', handleMouseDown);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [currentMediaIndex, post.media.length, minSwipeDistance]);
 
     // Fonction pour compter une vue
     const countView = async () => {
@@ -811,33 +882,33 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 style={{
                     transform: `translateX(calc(-${currentMediaIndex * 100}% + ${dragOffset}px))`,
                     cursor: post.media.length > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-                    touchAction: post.media.length > 1 ? 'pan-y pinch-zoom' : 'auto',
+                    touchAction: post.media.length > 1 ? 'pan-x pan-y' : 'auto',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
                 }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
-                onMouseDown={onMouseDown}
-                onMouseMove={onMouseMove}
-                onMouseUp={onMouseUp}
-                onMouseLeave={onMouseUp}
             >
                 {post.media.map((media, index) => (
                     <div 
                         key={`${post.id}-${index}-${media.url.substring(0, 50)}`}
-                        className="relative h-full w-full flex-shrink-0"
+                        className="relative h-full w-full flex-shrink-0 pointer-events-auto"
+                        style={{ pointerEvents: 'auto' }}
                     >
                         {media.type === 'image' ? (
                             <Image
                                 src={media.url}
                                 alt={`Post media ${index + 1}`}
                                 fill
-                                className="object-cover select-none"
+                                className="object-cover select-none pointer-events-none"
                                 priority={index === 0 && currentMediaIndex === 0}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 quality={85}
                                 sizes="100vw"
                                 unoptimized={true}
                                 draggable={false}
+                                style={{ pointerEvents: 'none' }}
                             />
                         ) : (
                             <>
@@ -846,7 +917,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                                         videoRefs.current[index] = el;
                                     }}
                                     src={media.url}
-                                    className="h-full w-full object-cover select-none"
+                                    className="h-full w-full object-cover select-none pointer-events-none"
                                     muted={!isSoundEnabled}
                                     loop
                                     playsInline
@@ -854,6 +925,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                                     preload={index === 0 && currentMediaIndex === 0 ? "auto" : "none"}
                                     loading="lazy"
                                     draggable={false}
+                                    style={{ pointerEvents: 'none' }}
                                     onLoadedMetadata={(e) => {
                                         const video = e.currentTarget;
                                         if (index === currentMediaIndex && isVisible && video.paused) {

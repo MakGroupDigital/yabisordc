@@ -62,9 +62,14 @@ export function GlobalLoader() {
         </div>
         
         {/* Texte de chargement avec effet de fade */}
-        <p className="absolute -bottom-20 left-1/2 -translate-x-1/2 text-white/90 font-headline text-lg font-semibold animate-pulse whitespace-nowrap">
-          Chargement...
-        </p>
+        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 text-center">
+          <p className="text-white font-headline text-2xl font-bold whitespace-nowrap">
+            <span className="bg-gradient-to-r from-[#FF8800] via-[#FFCC00] to-[#FF8800] bg-clip-text text-transparent animate-gradient">
+              Oyo Ya Biso Moko
+            </span>
+            <span className="text-[#FFCC00] ml-1 animate-pulse">!</span>
+          </p>
+        </div>
       </div>
     </div>
   );

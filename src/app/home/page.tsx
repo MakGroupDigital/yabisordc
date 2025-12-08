@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { PostCardTikTok } from "@/components/home/post-card-tiktok";
 import { BottomNav } from "@/components/home/bottom-nav";
 import { usePosts } from "@/hooks/use-posts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sortPostsByFeedAlgorithm } from "@/lib/feed-algorithm";
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { formatRelativeTime } from '@/lib/posts';
 
 function PostSkeleton() {
     return (
@@ -22,30 +28,96 @@ function PostSkeleton() {
 export default function FeedPage() {
   // Limiter à 30 posts initiaux pour un chargement plus rapide
   const { posts, loading, error } = usePosts(true);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Charger les préférences utilisateur
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        try {
+          // Charger les utilisateurs suivis
+          const followingRef = collection(db, 'users', user.uid, 'following');
+          const followingSnapshot = await getDocs(followingRef);
+          const followedUsers = followingSnapshot.docs.map(doc => doc.id);
+
+          // Charger les favoris pour obtenir les hashtags likés
+          const favoritesQuery = query(
+            collection(db, 'favorites'),
+            where('userId', '==', user.uid)
+          );
+          const favoritesSnapshot = await getDocs(favoritesQuery);
+          
+          // Extraire les hashtags des posts favoris (simplifié)
+          const likedHashtags: string[] = [];
+
+          // Historique de visionnage (simplifié - à implémenter avec données réelles)
+          const viewHistory: { postId: string; viewedAt: Date }[] = [];
+
+          setUserPreferences({
+            followedUsers,
+            likedHashtags,
+            savedLocations: [], // À implémenter
+            preferredContentType: 'both' as const,
+            viewHistory,
+          });
+        } catch (err) {
+          console.error('Erreur chargement préférences:', err);
+          setUserPreferences(null);
+        }
+      } else {
+        setUserId(null);
+        setUserPreferences(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Trier les posts avec l'algorithme
+  const sortedPosts = useMemo(() => {
+    if (posts.length === 0) return [];
+    
+    try {
+      return sortPostsByFeedAlgorithm(posts, userPreferences);
+    } catch (err) {
+      console.error('Erreur tri algorithmique:', err);
+      // Fallback: tri simple par date
+      return [...posts].sort((a, b) => {
+        const dateA = a.createdAt?.getTime() || 0;
+        const dateB = b.createdAt?.getTime() || 0;
+        return dateB - dateA;
+      });
+    }
+  }, [posts, userPreferences]);
 
   // Debug: afficher les infos dans la console
   useEffect(() => {
     console.log('\n📱 ========== ÉTAT DU FEED ==========');
     console.log('📱 Loading:', loading);
     console.log('📱 Posts count:', posts.length);
+    console.log('📱 Sorted posts count:', sortedPosts.length);
     console.log('📱 Has error:', !!error);
     if (error) {
       console.error('📱 Error message:', error.message);
       console.error('📱 Error details:', error);
     }
-    if (posts.length > 0) {
-      console.log('📋 Premiers posts:', posts.slice(0, 3).map(p => ({
+    if (sortedPosts.length > 0) {
+      console.log('📋 Premiers posts triés:', sortedPosts.slice(0, 3).map(p => ({
         id: p.id,
         author: p.author,
+        likes: p.likes,
+        views: p.viewsCount,
         mediaCount: p.media.length,
         caption: p.caption.substring(0, 30) + '...'
       })));
     } else if (!loading) {
       console.warn('⚠️ Aucun post à afficher');
-      console.warn('⚠️ Vérifiez la console pour les logs de récupération');
+      console.warn('⚠️ Vérifiez la console pour les logs de débogage');
     }
     console.log('📱 ====================================\n');
-  }, [posts, loading, error]);
+  }, [sortedPosts, loading, error, posts.length]);
 
   if (error) {
     return (
@@ -85,17 +157,29 @@ export default function FeedPage() {
           </div>
         ) : (
           (() => {
-            // Filtrer les doublons basés sur l'ID
-            const uniquePosts = posts.reduce((acc, post) => {
+            // Utiliser les posts triés par l'algorithme
+            const uniquePosts = sortedPosts.reduce((acc, post) => {
               if (!acc.find(p => p.id === post.id)) {
                 acc.push(post);
               }
               return acc;
-            }, [] as typeof posts);
+            }, [] as typeof sortedPosts);
             
-            return uniquePosts.map((post, index) => (
-              <PostCardTikTok key={`${post.id}-${index}-${post.createdAt?.getTime() || Date.now()}`} post={post} />
-            ));
+            return uniquePosts.map((post, index) => {
+              // Ajouter relativeTime si nécessaire
+              const postWithTime = {
+                ...post,
+                relativeTime: post.createdAt 
+                  ? formatRelativeTime(post.createdAt)
+                  : undefined
+              };
+              return (
+                <PostCardTikTok 
+                  key={`${post.id}-${index}-${post.createdAt?.getTime() || Date.now()}`} 
+                  post={postWithTime} 
+                />
+              );
+            });
           })()
         )}
       </div>

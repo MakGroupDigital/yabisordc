@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import { SoundProvider } from "@/contexts/sound-context";
+import { GlobalLoader } from "@/components/loading/global-loader";
 import './globals.css';
 import { Inter, Montserrat } from 'next/font/google'
 
@@ -48,6 +49,7 @@ export default function RootLayout({
     <html lang="fr" className={`${inter.variable} ${montserrat.variable} h-full bg-background`}>
       <body className="font-body antialiased h-full">
         <SoundProvider>
+          <GlobalLoader />
           <div className="h-full w-full">
             {children}
           </div>

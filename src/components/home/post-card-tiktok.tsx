@@ -48,7 +48,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useSound } from '@/contexts/sound-context';
 import { useRouter } from 'next/navigation';
-import { useRouter } from 'next/navigation';
 
 interface PostCardTikTokProps {
   post: Post & { relativeTime?: string };

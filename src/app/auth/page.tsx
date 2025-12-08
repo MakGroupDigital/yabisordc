@@ -45,7 +45,23 @@ function AuthPageContent() {
   // Initialiser reCAPTCHA - Amélioré avec gestion d'erreur
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (activeTab !== 'phone') return; // Ne s'initialiser que sur l'onglet téléphone
+    if (activeTab !== 'phone') {
+      // Nettoyer le verifier quand on quitte l'onglet téléphone
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (e) {
+          console.warn('Erreur lors du nettoyage:', e);
+        }
+        setRecaptchaVerifier(null);
+      }
+      // Nettoyer aussi le container
+      const container = document.getElementById('recaptcha-container');
+      if (container) {
+        container.innerHTML = '';
+      }
+      return;
+    }
 
     let retryCount = 0;
     const maxRetries = 5;
@@ -61,33 +77,55 @@ function AuthPageContent() {
           return;
         } else {
           console.error('❌ Impossible de trouver le container reCAPTCHA après plusieurs tentatives');
-          setError('Erreur d\'initialisation reCAPTCHA. Veuillez rafraîchir la page.');
-          setErrorType('error');
           return;
         }
       }
 
-      // Nettoyer l'ancien verifier s'il existe
+      // Nettoyer complètement avant d'initialiser
       if (recaptchaVerifier) {
         try {
           recaptchaVerifier.clear();
         } catch (e) {
           console.warn('Erreur lors du nettoyage du reCAPTCHA:', e);
         }
+        setRecaptchaVerifier(null);
       }
 
+      // Nettoyer le container
+      container.innerHTML = '';
+
+      // Attendre un peu pour que le DOM se mette à jour
+      setTimeout(() => {
+        try {
+          // Vérifier que auth est bien initialisé
+          if (!auth) {
+            throw new Error('Firebase Auth n\'est pas initialisé');
+          }
+
+          // Vérifier que le container est toujours vide
+          if (container.children.length > 0) {
+            console.warn('⚠️ Container non vide, nettoyage supplémentaire...');
+            container.innerHTML = '';
+            // Attendre encore un peu
+            setTimeout(() => {
+              createVerifier();
+            }, 200);
+            return;
+          }
+
+          createVerifier();
+        } catch (error: any) {
+          console.error('❌ Erreur initialisation reCAPTCHA:', error);
+        }
+      }, 100);
+    };
+
+    const createVerifier = () => {
+      const container = document.getElementById('recaptcha-container');
+      if (!container) return;
+
       try {
-        // Vérifier si le container a déjà un widget
-        if (container.children.length > 0) {
-          container.innerHTML = '';
-        }
-
-        // Vérifier que auth est bien initialisé
-        if (!auth) {
-          throw new Error('Firebase Auth n\'est pas initialisé');
-        }
-
-        console.log('🔄 Initialisation du reCAPTCHA...');
+        console.log('🔄 Création du verifier reCAPTCHA...');
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
           callback: (response: string) => {
@@ -104,23 +142,42 @@ function AuthPageContent() {
               }
             }
             setRecaptchaVerifier(null);
+            // Nettoyer le container
+            if (container) {
+              container.innerHTML = '';
+            }
             // Réinitialiser après un court délai
             setTimeout(initRecaptcha, 500);
           },
           'error-callback': (error: any) => {
             console.error('❌ Erreur reCAPTCHA:', error);
-            setError('Erreur de vérification reCAPTCHA. Veuillez rafraîchir la page.');
-            setErrorType('error');
           }
         });
 
         console.log('✅ reCAPTCHA initialisé avec succès');
         setRecaptchaVerifier(verifier);
       } catch (error: any) {
-        console.error('❌ Erreur initialisation reCAPTCHA:', error);
-        const errorMessage = error.message || 'Erreur inconnue';
-        setError(`Erreur d'initialisation reCAPTCHA: ${errorMessage}. Vérifiez la configuration Firebase.`);
-        setErrorType('error');
+        console.error('❌ Erreur lors de la création du verifier:', error);
+        if (error.message?.includes('already been rendered')) {
+          console.log('🔄 Widget déjà rendu, nettoyage et réessai...');
+          container.innerHTML = '';
+          setTimeout(() => {
+            try {
+              const newVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                size: 'invisible',
+                callback: (response: string) => {
+                  console.log('✅ reCAPTCHA vérifié:', response);
+                },
+                'expired-callback': () => {
+                  console.warn('⚠️ reCAPTCHA expiré');
+                }
+              });
+              setRecaptchaVerifier(newVerifier);
+            } catch (retryError: any) {
+              console.error('❌ Erreur après nettoyage:', retryError);
+            }
+          }, 300);
+        }
       }
     };
 
@@ -135,6 +192,10 @@ function AuthPageContent() {
         } catch (e) {
           console.warn('Erreur lors du nettoyage:', e);
         }
+      }
+      const container = document.getElementById('recaptcha-container');
+      if (container) {
+        container.innerHTML = '';
       }
     };
   }, [activeTab]); // Réinitialiser quand on change d'onglet
@@ -339,8 +400,11 @@ function AuthPageContent() {
           throw new Error('Container reCAPTCHA non trouvé dans le DOM. Veuillez rafraîchir la page.');
         }
 
-        // Nettoyer le container
+        // Nettoyer complètement le container et les widgets existants
         container.innerHTML = '';
+        
+        // Attendre un peu pour que le DOM se mette à jour
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // Vérifier que auth est bien initialisé
         if (!auth) {
@@ -365,7 +429,77 @@ function AuthPageContent() {
           console.log('✅ reCAPTCHA réinitialisé avec succès');
         } catch (recaptchaError: any) {
           console.error('❌ Erreur lors de la création du reCAPTCHA:', recaptchaError);
-          throw new Error(`Erreur reCAPTCHA: ${recaptchaError.message || 'Impossible de créer le verifier'}`);
+          
+          // Si l'erreur indique que reCAPTCHA est déjà rendu, nettoyer et réessayer
+          if (recaptchaError.message?.includes('already been rendered')) {
+            console.log('🔄 Nettoyage du widget reCAPTCHA existant...');
+            container.innerHTML = '';
+            
+            // Attendre un peu plus longtemps
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            try {
+              verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                size: 'invisible',
+                callback: (response: string) => {
+                  console.log('✅ reCAPTCHA vérifié:', response);
+                },
+                'expired-callback': () => {
+                  console.warn('⚠️ reCAPTCHA expiré');
+                },
+                'error-callback': (error: any) => {
+                  console.error('❌ Erreur reCAPTCHA:', error);
+                }
+              });
+              
+              setRecaptchaVerifier(verifier);
+              console.log('✅ reCAPTCHA créé avec succès après nettoyage');
+            } catch (retryError: any) {
+              throw new Error(`Erreur reCAPTCHA après nettoyage: ${retryError.message || 'Impossible de créer le verifier'}`);
+            }
+          } else {
+            throw new Error(`Erreur reCAPTCHA: ${recaptchaError.message || 'Impossible de créer le verifier'}`);
+          }
+        }
+      } else {
+        // Vérifier que le verifier existant est toujours valide
+        try {
+          // Tester si le verifier peut être utilisé
+          const container = document.getElementById('recaptcha-container');
+          if (container && container.children.length === 0) {
+            // Le container est vide, le verifier n'est plus valide
+            console.log('🔄 Le verifier existant n\'est plus valide, réinitialisation...');
+            try {
+              verifier.clear();
+            } catch (e) {
+              console.warn('Erreur lors du nettoyage de l\'ancien verifier:', e);
+            }
+            setRecaptchaVerifier(null);
+            // Réessayer avec un nouveau verifier
+            const container2 = document.getElementById('recaptcha-container');
+            if (container2) {
+              container2.innerHTML = '';
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                size: 'invisible',
+                callback: (response: string) => {
+                  console.log('✅ reCAPTCHA vérifié:', response);
+                },
+                'expired-callback': () => {
+                  console.warn('⚠️ reCAPTCHA expiré');
+                },
+                'error-callback': (error: any) => {
+                  console.error('❌ Erreur reCAPTCHA:', error);
+                }
+              });
+              
+              setRecaptchaVerifier(verifier);
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur lors de la vérification du verifier:', e);
+          // Continuer avec le verifier existant
         }
       }
 

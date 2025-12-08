@@ -42,17 +42,29 @@ function AuthPageContent() {
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const { toast } = useToast();
 
-  // Initialiser reCAPTCHA - Amélioré
+  // Initialiser reCAPTCHA - Amélioré avec gestion d'erreur
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (activeTab !== 'phone') return; // Ne s'initialiser que sur l'onglet téléphone
+
+    let retryCount = 0;
+    const maxRetries = 5;
 
     // Attendre que le DOM soit prêt
     const initRecaptcha = () => {
       const container = document.getElementById('recaptcha-container');
       if (!container) {
-        console.warn('Container reCAPTCHA non trouvé, réessai dans 100ms...');
-        setTimeout(initRecaptcha, 100);
-        return;
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.warn(`Container reCAPTCHA non trouvé, réessai ${retryCount}/${maxRetries}...`);
+          setTimeout(initRecaptcha, 200);
+          return;
+        } else {
+          console.error('❌ Impossible de trouver le container reCAPTCHA après plusieurs tentatives');
+          setError('Erreur d\'initialisation reCAPTCHA. Veuillez rafraîchir la page.');
+          setErrorType('error');
+          return;
+        }
       }
 
       // Nettoyer l'ancien verifier s'il existe
@@ -70,6 +82,12 @@ function AuthPageContent() {
           container.innerHTML = '';
         }
 
+        // Vérifier que auth est bien initialisé
+        if (!auth) {
+          throw new Error('Firebase Auth n\'est pas initialisé');
+        }
+
+        console.log('🔄 Initialisation du reCAPTCHA...');
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
           callback: (response: string) => {
@@ -79,10 +97,15 @@ function AuthPageContent() {
             console.warn('⚠️ reCAPTCHA expiré, réinitialisation...');
             // Réinitialiser le verifier
             if (recaptchaVerifier) {
-              recaptchaVerifier.clear();
+              try {
+                recaptchaVerifier.clear();
+              } catch (e) {
+                console.warn('Erreur lors du nettoyage:', e);
+              }
             }
             setRecaptchaVerifier(null);
-            initRecaptcha();
+            // Réinitialiser après un court délai
+            setTimeout(initRecaptcha, 500);
           },
           'error-callback': (error: any) => {
             console.error('❌ Erreur reCAPTCHA:', error);
@@ -95,13 +118,14 @@ function AuthPageContent() {
         setRecaptchaVerifier(verifier);
       } catch (error: any) {
         console.error('❌ Erreur initialisation reCAPTCHA:', error);
-        setError(`Erreur d'initialisation: ${error.message || 'Erreur inconnue'}`);
+        const errorMessage = error.message || 'Erreur inconnue';
+        setError(`Erreur d'initialisation reCAPTCHA: ${errorMessage}. Vérifiez la configuration Firebase.`);
         setErrorType('error');
       }
     };
 
     // Démarrer l'initialisation après un court délai pour s'assurer que le DOM est prêt
-    const timer = setTimeout(initRecaptcha, 200);
+    const timer = setTimeout(initRecaptcha, 300);
 
     return () => {
       clearTimeout(timer);
@@ -170,6 +194,11 @@ function AuthPageContent() {
         return { message: 'Quota de SMS dépassé. Veuillez réessayer plus tard.', type: 'warning' };
       case 'auth/app-not-authorized':
         return { message: 'L\'application n\'est pas autorisée. Vérifiez la configuration Firebase.', type: 'error' };
+      case 'auth/invalid-app-credential':
+        return { 
+          message: 'Configuration Firebase invalide. Vérifiez que : 1) L\'authentification par téléphone est activée dans Firebase Console, 2) Votre domaine est autorisé, 3) reCAPTCHA est configuré.', 
+          type: 'error' 
+        };
       default:
         return { message: `Une erreur s'est produite: ${code}. Veuillez réessayer ou contacter le support.`, type: 'error' };
     }
@@ -307,26 +336,37 @@ function AuthPageContent() {
         console.log('🔄 Réinitialisation du reCAPTCHA...');
         const container = document.getElementById('recaptcha-container');
         if (!container) {
-          throw new Error('Container reCAPTCHA non trouvé dans le DOM');
+          throw new Error('Container reCAPTCHA non trouvé dans le DOM. Veuillez rafraîchir la page.');
         }
 
         // Nettoyer le container
         container.innerHTML = '';
 
-        verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: (response: string) => {
-            console.log('✅ reCAPTCHA vérifié:', response);
-          },
-          'expired-callback': () => {
-            console.warn('⚠️ reCAPTCHA expiré');
-          },
-          'error-callback': (error: any) => {
-            console.error('❌ Erreur reCAPTCHA:', error);
-          }
-        });
+        // Vérifier que auth est bien initialisé
+        if (!auth) {
+          throw new Error('Firebase Auth n\'est pas initialisé. Vérifiez la configuration Firebase.');
+        }
 
-        setRecaptchaVerifier(verifier);
+        try {
+          verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: (response: string) => {
+              console.log('✅ reCAPTCHA vérifié:', response);
+            },
+            'expired-callback': () => {
+              console.warn('⚠️ reCAPTCHA expiré');
+            },
+            'error-callback': (error: any) => {
+              console.error('❌ Erreur reCAPTCHA:', error);
+            }
+          });
+
+          setRecaptchaVerifier(verifier);
+          console.log('✅ reCAPTCHA réinitialisé avec succès');
+        } catch (recaptchaError: any) {
+          console.error('❌ Erreur lors de la création du reCAPTCHA:', recaptchaError);
+          throw new Error(`Erreur reCAPTCHA: ${recaptchaError.message || 'Impossible de créer le verifier'}`);
+        }
       }
 
       console.log('📤 Envoi du code de vérification...');

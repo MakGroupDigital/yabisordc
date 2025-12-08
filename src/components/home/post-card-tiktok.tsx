@@ -48,6 +48,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useSound } from '@/contexts/sound-context';
 import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface PostCardTikTokProps {
   post: Post & { relativeTime?: string };
@@ -88,6 +89,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
     const containerRef = useRef<HTMLDivElement>(null);
     const heartIdRef = useRef(0);
     const { toast } = useToast();
+    const router = useRouter();
 
     // Vérifier l'état d'authentification
     useEffect(() => {

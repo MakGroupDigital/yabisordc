@@ -388,9 +388,12 @@ function AuthPageContent() {
         stack: err?.stack
       });
 
-      // Gestion spécifique des erreurs reCAPTCHA
-      if (err?.code === 'auth/recaptcha-not-enabled' || err?.message?.includes('recaptcha')) {
-        setError('reCAPTCHA n\'est pas activé. Veuillez contacter le support.');
+      // Gestion spécifique des erreurs
+      if (err?.code === 'auth/invalid-app-credential') {
+        setError('Configuration Firebase invalide. Vérifiez dans Firebase Console : 1) Authentication > Sign-in method > Phone est activé, 2) Votre domaine est dans la liste des domaines autorisés, 3) reCAPTCHA est configuré. Consultez FIREBASE_PHONE_AUTH_SETUP.md pour plus de détails.');
+        setErrorType('error');
+      } else if (err?.code === 'auth/recaptcha-not-enabled' || err?.message?.includes('recaptcha')) {
+        setError('reCAPTCHA n\'est pas activé. Activez-le dans Firebase Console > Authentication > Settings > reCAPTCHA.');
         setErrorType('error');
       } else if (err?.code === 'auth/invalid-phone-number') {
         setError('Numéro de téléphone invalide. Utilisez le format international (ex: +243900000000).');
@@ -398,6 +401,9 @@ function AuthPageContent() {
       } else if (err?.code === 'auth/too-many-requests') {
         setError('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.');
         setErrorType('warning');
+      } else if (err?.code === 'auth/app-not-authorized') {
+        setError('L\'application n\'est pas autorisée. Vérifiez que votre domaine est dans Firebase Console > Authentication > Settings > Authorized domains.');
+        setErrorType('error');
       } else {
         const errorCode = err?.code || err?.message || 'unknown';
         const errorInfo = getErrorMessage(errorCode);

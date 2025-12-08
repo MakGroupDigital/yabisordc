@@ -16,7 +16,9 @@ import {
   Search,
   Star,
   MapPin as LocationIcon,
-  ArrowRight
+  ArrowRight,
+  Heart,
+  PartyPopper
 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -95,6 +97,18 @@ const categories: Category[] = [
     name: 'Sécurité',
     icon: Shield,
     route: '/home/explorer/securite'
+  },
+  {
+    id: 'urgence-medicale',
+    name: 'Urgence Médicale',
+    icon: Heart,
+    route: '/home/explorer/urgence-medicale'
+  },
+  {
+    id: 'salle-fete-jeux',
+    name: 'Salle de Fête et Jeux',
+    icon: PartyPopper,
+    route: '/home/explorer/salle-fete-jeux'
   },
 ];
 

@@ -210,6 +210,130 @@ export default function SecuritePage() {
             </CardContent>
           </Card>
 
+          {/* Section Police avec adresses */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardContent className="p-6 space-y-4">
+              <h3 className="text-white font-semibold text-lg mb-4">Postes de Police</h3>
+              
+              <div className="space-y-3">
+                <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Shield className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Commissariat Central de Kinshasa</p>
+                        <p className="text-gray-400 text-sm mb-2">Avenue de la Justice, Gombe, Kinshasa</p>
+                        <p className="text-gray-400 text-sm">+243 900 004 100</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => window.location.href = 'tel:+243900004100'}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 flex-shrink-0"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Shield className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Poste de Police de Ngaliema</p>
+                        <p className="text-gray-400 text-sm mb-2">Avenue de Ngaliema, Kinshasa</p>
+                        <p className="text-gray-400 text-sm">+243 900 004 101</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => window.location.href = 'tel:+243900004101'}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 flex-shrink-0"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Shield className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Poste de Police de Matete</p>
+                        <p className="text-gray-400 text-sm mb-2">Boulevard Lumumba, Matete, Kinshasa</p>
+                        <p className="text-gray-400 text-sm">+243 900 004 102</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => window.location.href = 'tel:+243900004102'}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 flex-shrink-0"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Shield className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Poste de Police de Goma</p>
+                        <p className="text-gray-400 text-sm mb-2">Avenue du Lac, Goma, Nord-Kivu</p>
+                        <p className="text-gray-400 text-sm">+243 900 004 103</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => window.location.href = 'tel:+243900004103'}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 flex-shrink-0"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Shield className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Poste de Police de Lubumbashi</p>
+                        <p className="text-gray-400 text-sm mb-2">Avenue Kasai, Lubumbashi, Haut-Katanga</p>
+                        <p className="text-gray-400 text-sm">+243 900 004 104</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => window.location.href = 'tel:+243900004104'}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 flex-shrink-0"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Conseils de sécurité */}
           <Card className="bg-gray-900/50 border-gray-800">
             <CardContent className="p-6">

@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { Calendar, ArrowLeft, Music, Film, Ticket, Users, MapPin, Clock, ExternalLink, CheckCircle2, Sparkles } from 'lucide-react';
+import { Calendar, ArrowLeft, Phone, Info, MapPin, Clock, Users } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -13,57 +15,105 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 
-const JUINGO_URL = 'https://app.juingo.com';
+interface Evenement {
+  id: string;
+  titre: string;
+  description: string;
+  date: string;
+  heure: string;
+  lieu: string;
+  image: string;
+  contact: string;
+  prix?: string;
+  capacite?: number;
+  organisateur?: string;
+}
+
+const evenements: Evenement[] = [
+  {
+    id: '1',
+    titre: 'Festival de Musique Africaine',
+    description: 'Grand festival de musique mettant en avant les talents africains avec des artistes locaux et internationaux.',
+    date: '15 Mars 2024',
+    heure: '18:00',
+    lieu: 'Stade des Martyrs, Kinshasa',
+    image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80',
+    contact: '+243 900 002 100',
+    prix: '15$',
+    capacite: 5000,
+    organisateur: 'Ya Biso Events',
+  },
+  {
+    id: '2',
+    titre: 'Exposition d\'Art Contemporain',
+    description: 'Découvrez les œuvres d\'artistes congolais contemporains lors de cette exposition exceptionnelle.',
+    date: '20 Mars 2024',
+    heure: '10:00',
+    lieu: 'Musée National, Kinshasa',
+    image: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
+    contact: '+243 900 002 101',
+    prix: 'Gratuit',
+    capacite: 200,
+    organisateur: 'Ministère de la Culture',
+  },
+  {
+    id: '3',
+    titre: 'Conférence Tech & Innovation',
+    description: 'Conférence sur les technologies émergentes et l\'innovation en RDC avec des intervenants de renom.',
+    date: '25 Mars 2024',
+    heure: '09:00',
+    lieu: 'Palais du Peuple, Kinshasa',
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80',
+    contact: '+243 900 002 102',
+    prix: '10$',
+    capacite: 1000,
+    organisateur: 'Tech RDC',
+  },
+  {
+    id: '4',
+    titre: 'Concert Jazz & Blues',
+    description: 'Soirée inoubliable avec des performances live de musiciens de jazz et blues congolais.',
+    date: '30 Mars 2024',
+    heure: '20:00',
+    lieu: 'Théâtre National, Kinshasa',
+    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80',
+    contact: '+243 900 002 103',
+    prix: '20$',
+    capacite: 500,
+    organisateur: 'Jazz Kinshasa',
+  },
+  {
+    id: '5',
+    titre: 'Festival de Cinéma Africain',
+    description: 'Projection de films africains primés avec des séances en plein air et des rencontres avec les réalisateurs.',
+    date: '5 Avril 2024',
+    heure: '19:00',
+    lieu: 'Centre Culturel, Kinshasa',
+    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&q=80',
+    contact: '+243 900 002 104',
+    prix: '12$',
+    capacite: 300,
+    organisateur: 'Ciné RDC',
+  },
+];
 
 export default function EvenementsPage() {
   const router = useRouter();
-  const [showRedirectDialog, setShowRedirectDialog] = useState(false);
   const { toast } = useToast();
+  const [selectedEvent, setSelectedEvent] = useState<Evenement | null>(null);
 
-  const handleRedirect = () => {
-    // Ouvrir dans un nouvel onglet
-    window.open(JUINGO_URL, '_blank');
-    
+  const handleContact = (contact: string, titre: string) => {
+    window.location.href = `tel:${contact}`;
     toast({
-      title: "Redirection vers Juingo",
-      description: "Vous allez être redirigé vers notre plateforme de billetterie Juingo",
-      duration: 3000,
+      title: "Appel en cours",
+      description: `Contact de ${titre}`,
     });
-
-    // Fermer le dialog après un court délai
-    setTimeout(() => {
-      setShowRedirectDialog(false);
-    }, 500);
   };
 
-  const features = [
-    {
-      icon: Ticket,
-      title: 'Billetterie en ligne',
-      description: 'Achetez vos billets pour tous les événements',
-      color: 'text-blue-400',
-    },
-    {
-      icon: Music,
-      title: 'Concerts & Festivals',
-      description: 'Découvrez les meilleurs événements musicaux',
-      color: 'text-purple-400',
-    },
-    {
-      icon: Film,
-      title: 'Cinéma & Spectacles',
-      description: 'Réservez vos places pour le cinéma et les spectacles',
-      color: 'text-pink-400',
-    },
-    {
-      icon: Users,
-      title: 'Événements culturels',
-      description: 'Participez à des événements culturels et sociaux',
-      color: 'text-green-400',
-    },
-  ];
+  const handleEnSavoirPlus = (evenement: Evenement) => {
+    setSelectedEvent(evenement);
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -91,133 +141,134 @@ export default function EvenementsPage() {
 
       {/* Contenu */}
       <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-20 pb-32">
-        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-6">
-          {/* Carte principale Juingo */}
-          <Card className="bg-gradient-to-br from-[#FF8800]/10 via-gray-900 to-gray-900 border-[#FF8800]/30 overflow-hidden">
-            <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 p-4 rounded-2xl bg-[#FF8800]/20 w-fit relative">
-                <Calendar className="h-12 w-12 text-[#FF8800]" />
-                <div className="absolute -top-1 -right-1">
-                  <Sparkles className="h-5 w-5 text-[#FFCC00]" fill="#FFCC00" />
+        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-4">
+          {/* Liste des événements */}
+          {evenements.map((evenement) => (
+            <Card key={evenement.id} className="bg-gray-900/50 border-gray-800 overflow-hidden">
+              <CardContent className="p-0">
+                {/* Image */}
+                <div className="relative w-full h-56">
+                  <Image
+                    src={evenement.image}
+                    alt={evenement.titre}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <div className="bg-[#FF8800] text-white px-3 py-1 rounded-full text-sm font-semibold">
+                      {evenement.prix || 'Gratuit'}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <CardTitle className="text-2xl font-bold text-white mb-2">
-                Juingo
-              </CardTitle>
-              <CardDescription className="text-gray-300 text-base">
-                Plateforme de billetterie moderne
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
-                <p className="text-white text-center text-sm leading-relaxed">
-                  Vous allez être redirigé vers notre plateforme experte <span className="font-semibold text-[#FF8800]">Juingo</span>, 
-                  une solution moderne de billetterie pour découvrir et réserver vos événements préférés.
-                </p>
-              </div>
 
-              {/* Liste des fonctionnalités */}
-              <div className="space-y-3">
-                <h3 className="text-white font-semibold text-lg mb-4">Fonctionnalités disponibles :</h3>
-                <div className="grid gap-3">
-                  {features.map((feature, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-4 p-4 rounded-lg bg-gray-900/50 border border-gray-800 hover:border-[#FF8800]/50 transition-all"
-                    >
-                      <div className={`p-2 rounded-lg bg-gray-800 ${feature.color} bg-opacity-20`}>
-                        <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                <div className="p-4 space-y-4">
+                  {/* Informations principales */}
+                  <div>
+                    <h3 className="text-white font-bold text-lg mb-2">{evenement.titre}</h3>
+                    <div className="flex items-center gap-4 text-gray-400 text-sm mb-3">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{evenement.date}</span>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-white font-semibold mb-1">{feature.title}</h4>
-                        <p className="text-gray-400 text-sm">{feature.description}</p>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        <span>{evenement.heure}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="flex items-start gap-2 text-gray-400 text-sm mb-3">
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{evenement.lieu}</span>
+                    </div>
+                    {evenement.capacite && (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
+                        <Users className="h-4 w-4" />
+                        <span>Capacité: {evenement.capacite} places</span>
+                      </div>
+                    )}
+                    {evenement.organisateur && (
+                      <p className="text-[#FF8800] text-sm font-semibold mb-2">
+                        Organisé par: {evenement.organisateur}
+                      </p>
+                    )}
+                  </div>
 
-              {/* Bouton de redirection */}
-              <Button
-                onClick={() => setShowRedirectDialog(true)}
-                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-14 text-lg font-semibold"
-              >
-                <ExternalLink className="h-5 w-5 mr-2" />
-                Accéder à Juingo
-              </Button>
-
-              <p className="text-xs text-gray-500 text-center">
-                En cliquant, vous serez redirigé vers app.juingo.com
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Carte d'information supplémentaire */}
-          <Card className="bg-gray-900/50 border-gray-800">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-lg bg-[#FF8800]/20">
-                  <CheckCircle2 className="h-6 w-6 text-[#FF8800]" />
+                  {/* Boutons d'action */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => handleContact(evenement.contact, evenement.titre)}
+                      variant="outline"
+                      className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
+                    >
+                      <Phone className="h-4 w-4 mr-2" />
+                      Contact
+                    </Button>
+                    <Button
+                      onClick={() => handleEnSavoirPlus(evenement)}
+                      className="flex-1 bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                    >
+                      <Info className="h-4 w-4 mr-2" />
+                      En savoir plus
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold mb-2">Pourquoi Juingo ?</h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    Juingo est notre plateforme experte dédiée à la billetterie et aux événements. 
-                    Découvrez une large gamme d'événements : concerts, festivals, spectacles, cinéma et bien plus encore. 
-                    Réservez vos billets en quelques clics, rapidement et en toute sécurité.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
-      
-      {/* Dialog de confirmation */}
-      <Dialog open={showRedirectDialog} onOpenChange={setShowRedirectDialog}>
+
+      {/* Dialog En savoir plus */}
+      <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
         <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
           <DialogHeader>
-            <div className="mx-auto mb-4 p-4 rounded-2xl bg-[#FF8800]/20 w-fit relative">
-              <Calendar className="h-10 w-10 text-[#FF8800]" />
-              <div className="absolute -top-1 -right-1">
-                <Sparkles className="h-5 w-5 text-[#FFCC00]" fill="#FFCC00" />
-              </div>
-            </div>
-            <DialogTitle className="text-2xl font-bold text-center">
-              Redirection vers Juingo
-            </DialogTitle>
-            <DialogDescription className="text-gray-400 text-center mt-2">
-              Vous allez être redirigé vers notre plateforme de billetterie Juingo
+            <DialogTitle className="text-2xl font-bold">{selectedEvent?.titre}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedEvent?.description}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 mt-6">
-            <div className="bg-black/30 rounded-lg p-4 border border-gray-800">
-              <p className="text-white text-sm text-center">
-                La plateforme Juingo s'ouvrira dans un nouvel onglet pour une meilleure expérience.
-              </p>
-            </div>
+          {selectedEvent && (
+            <div className="space-y-4 mt-4">
+              <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Calendar className="h-4 w-4" />
+                  <span>{selectedEvent.date} à {selectedEvent.heure}</span>
+                </div>
+                <div className="flex items-start gap-2 text-gray-300">
+                  <MapPin className="h-4 w-4 mt-0.5" />
+                  <span>{selectedEvent.lieu}</span>
+                </div>
+                {selectedEvent.prix && (
+                  <div className="flex items-center gap-2 text-[#FF8800] font-semibold">
+                    <span>Prix: {selectedEvent.prix}</span>
+                  </div>
+                )}
+                {selectedEvent.organisateur && (
+                  <div className="text-gray-300">
+                    <span className="font-semibold">Organisateur: </span>
+                    <span>{selectedEvent.organisateur}</span>
+                  </div>
+                )}
+                {selectedEvent.capacite && (
+                  <div className="text-gray-300">
+                    <span className="font-semibold">Capacité: </span>
+                    <span>{selectedEvent.capacite} places</span>
+                  </div>
+                )}
+              </div>
 
-            <div className="flex flex-col gap-3">
               <Button
-                onClick={handleRedirect}
-                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg font-semibold"
+                onClick={() => handleContact(selectedEvent.contact, selectedEvent.titre)}
+                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
               >
-                <ExternalLink className="h-5 w-5 mr-2" />
-                Oui, rediriger vers Juingo
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowRedirectDialog(false)}
-                className="w-full border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 h-12"
-              >
-                Annuler
+                <Phone className="h-4 w-4 mr-2" />
+                Contacter l'organisateur
               </Button>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
-      
+
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="pointer-events-auto">
@@ -227,4 +278,3 @@ export default function EvenementsPage() {
     </div>
   );
 }
-

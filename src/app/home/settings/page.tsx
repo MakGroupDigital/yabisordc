@@ -26,7 +26,7 @@ import {
   ArrowLeft,
   Trash2,
   Download,
-  User,
+  User as UserIcon,
   Mail,
   Phone
 } from 'lucide-react';
@@ -157,7 +157,7 @@ export default function SettingsPage() {
           {/* Profil */}
           <div className="bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-800/50">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <User className="h-5 w-5 text-[#FFCC00]" />
+              <UserIcon className="h-5 w-5 text-[#FFCC00]" />
               Profil
             </h2>
             <div className="space-y-4">

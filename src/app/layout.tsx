@@ -48,14 +48,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={`${inter.variable} ${montserrat.variable} h-full bg-background`}>
-      <head>
+      <body className="font-body antialiased h-full">
         {/* reCAPTCHA Enterprise pour Firebase Phone Authentication */}
         <Script
           src="https://www.google.com/recaptcha/enterprise.js?render=6LcmLSUsAAAAAOMudj7WEMUnOvHoRZo0JyORN3ia"
           strategy="afterInteractive"
         />
-      </head>
-      <body className="font-body antialiased h-full">
         <SoundProvider>
           <GlobalLoader />
           <div className="h-full w-full">

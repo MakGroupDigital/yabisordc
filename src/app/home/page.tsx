@@ -20,23 +20,31 @@ function PostSkeleton() {
 }
 
 export default function FeedPage() {
+  // Limiter à 30 posts initiaux pour un chargement plus rapide
   const { posts, loading, error } = usePosts(true);
 
   // Debug: afficher les infos dans la console
   useEffect(() => {
-    console.log('📱 État du feed:', {
-      loading,
-      postsCount: posts.length,
-      hasError: !!error,
-      errorMessage: error?.message
-    });
+    console.log('\n📱 ========== ÉTAT DU FEED ==========');
+    console.log('📱 Loading:', loading);
+    console.log('📱 Posts count:', posts.length);
+    console.log('📱 Has error:', !!error);
+    if (error) {
+      console.error('📱 Error message:', error.message);
+      console.error('📱 Error details:', error);
+    }
     if (posts.length > 0) {
       console.log('📋 Premiers posts:', posts.slice(0, 3).map(p => ({
         id: p.id,
         author: p.author,
-        mediaCount: p.media.length
+        mediaCount: p.media.length,
+        caption: p.caption.substring(0, 30) + '...'
       })));
+    } else if (!loading) {
+      console.warn('⚠️ Aucun post à afficher');
+      console.warn('⚠️ Vérifiez la console pour les logs de récupération');
     }
+    console.log('📱 ====================================\n');
   }, [posts, loading, error]);
 
   if (error) {
@@ -76,9 +84,19 @@ export default function FeedPage() {
             </div>
           </div>
         ) : (
-          posts.map((post) => (
-            <PostCardTikTok key={post.id} post={post} />
-          ))
+          (() => {
+            // Filtrer les doublons basés sur l'ID
+            const uniquePosts = posts.reduce((acc, post) => {
+              if (!acc.find(p => p.id === post.id)) {
+                acc.push(post);
+              }
+              return acc;
+            }, [] as typeof posts);
+            
+            return uniquePosts.map((post, index) => (
+              <PostCardTikTok key={`${post.id}-${index}-${post.createdAt?.getTime() || Date.now()}`} post={post} />
+            ));
+          })()
         )}
       </div>
       

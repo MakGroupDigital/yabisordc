@@ -122,6 +122,25 @@ export default function CreatePostPage() {
       return;
     }
 
+    // Vérifier l'authentification
+    console.log('🔐 Vérification de l\'authentification:', {
+      user: user ? {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName
+      } : null,
+      auth: auth.currentUser ? {
+        uid: auth.currentUser.uid,
+        email: auth.currentUser.email
+      } : null
+    });
+
+    if (!user || !auth.currentUser) {
+      console.error('❌ Utilisateur non authentifié');
+      alert('Vous devez être connecté pour publier');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
     setUploadStatus('Préparation de l\'upload...');
@@ -132,6 +151,7 @@ export default function CreatePostPage() {
         filesCount: mediaFiles.length,
         userId: user.uid,
         userEmail: user.email,
+        storageBucket: storage.app.options.storageBucket,
         files: mediaFiles.map(f => ({ name: f.name, type: f.type, size: f.size }))
       });
 
@@ -151,23 +171,37 @@ export default function CreatePostPage() {
 
           const timestamp = Date.now();
           const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-          const fileRef = ref(storage, `posts/${user.uid}/${timestamp}_${i}_${sanitizedName}`);
+          const storagePath = `posts/${user.uid}/${timestamp}_${i}_${sanitizedName}`;
+          const fileRef = ref(storage, storagePath);
           
           console.log(`📤 Début upload fichier ${i + 1}/${totalFiles}:`, {
             name: file.name,
             size: file.size,
             type: file.type,
-            path: fileRef.fullPath
+            path: storagePath,
+            fullPath: fileRef.fullPath,
+            bucket: fileRef.bucket
           });
           
           setUploadStatus(`Upload de ${i + 1}/${totalFiles}...`);
           setUploadProgress(Math.round((uploadedFiles / totalFiles) * 100));
           
           // Utiliser uploadBytesResumable pour suivre la progression
-          const uploadTask = uploadBytesResumable(fileRef, file);
+          console.log(`🔄 Création de la tâche d'upload pour ${file.name}...`);
+          const uploadTask = uploadBytesResumable(fileRef, file, {
+            contentType: file.type
+          });
           
+          console.log(`▶️ Démarrage de l'upload pour ${file.name}...`);
           // Démarrer l'upload immédiatement
           uploadTask.resume();
+          
+          // Vérifier l'état initial
+          console.log(`📊 État initial de l'upload:`, {
+            state: uploadTask.snapshot.state,
+            bytesTransferred: uploadTask.snapshot.bytesTransferred,
+            totalBytes: uploadTask.snapshot.totalBytes
+          });
           
           await new Promise<void>((resolve, reject) => {
             let hasStarted = false;
@@ -190,9 +224,19 @@ export default function CreatePostPage() {
                   uploadTimeout = null;
                 }
                 
+                // Log de chaque changement d'état
+                console.log(`📊 État upload ${file.name}:`, {
+                  state: snapshot.state,
+                  bytesTransferred: snapshot.bytesTransferred,
+                  totalBytes: snapshot.totalBytes,
+                  progress: snapshot.totalBytes > 0 
+                    ? ((snapshot.bytesTransferred / snapshot.totalBytes) * 100).toFixed(2) + '%'
+                    : '0%'
+                });
+                
                 if (!hasStarted) {
                   hasStarted = true;
-                  console.log(`📊 Upload démarré pour ${file.name}`, {
+                  console.log(`✅ Upload démarré pour ${file.name}`, {
                     state: snapshot.state,
                     bytesTransferred: snapshot.bytesTransferred,
                     totalBytes: snapshot.totalBytes
@@ -308,6 +352,9 @@ export default function CreatePostPage() {
         caption: fullCaption,
         likes: 0,
         comments: 0,
+        favorites: 0,
+        shares: 0,
+        views: 0,
         createdAt: serverTimestamp(),
       };
 

@@ -56,3 +56,5 @@ NEXT_PUBLIC_PAYPAL_CLIENT_SECRET = EAud2skyaLTJbDnTeXrJUvPDZdKzSZfaSea_YkqaURUf9
 
 Après le déploiement, testez les fonctionnalités de paiement pour vérifier que tout fonctionne correctement.
 
+
+

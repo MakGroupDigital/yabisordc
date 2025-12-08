@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Règles pour la collection 'posts'
+    match /posts/{postId} {
+      // Permettre la lecture à TOUS (public) - comme un feed public
+      allow read: if true;
+      
+      // Permettre la création uniquement aux utilisateurs authentifiés
+      // L'utilisateur doit être l'auteur du post
+      allow create: if request.auth != null 
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId is string
+        && request.resource.data.author is string
+        && request.resource.data.media is list
+        && request.resource.data.media.size() > 0
+        && request.resource.data.caption is string
+        && request.resource.data.likes is int
+        && request.resource.data.comments is int
+        && (request.resource.data.favorites == null || request.resource.data.favorites is int)
+        && (request.resource.data.shares == null || request.resource.data.shares is int)
+        && (request.resource.data.views == null || request.resource.data.views is int)
+        && request.resource.data.createdAt == request.time;
+      
+      // Permettre la mise à jour pour les compteurs (likes, comments, favorites, shares, views)
+      // N'importe quel utilisateur authentifié peut mettre à jour les compteurs
+      // Le propriétaire peut mettre à jour n'importe quel champ
+      allow update: if request.auth != null
+        && (
+          // Mise à jour par le propriétaire
+          (resource.data.authorId == request.auth.uid)
+          ||
+          // Ou mise à jour des compteurs uniquement (vérifier que les champs essentiels ne changent pas)
+          (request.resource.data.authorId == resource.data.authorId
+           && request.resource.data.author == resource.data.author
+           && request.resource.data.media == resource.data.media
+           && request.resource.data.caption == resource.data.caption)
+        );
+      
+      // Permettre la suppression uniquement au propriétaire du post
+      allow delete: if request.auth != null 
+        && resource.data.authorId == request.auth.uid;
+      
+      // Règles pour les likes (sous-collection)
+      match /likes/{userId} {
+        allow read: if true;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Règles pour les commentaires (sous-collection)
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null 
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.text is string;
+        allow update: if request.auth != null 
+          && resource.data.userId == request.auth.uid;
+        allow delete: if request.auth != null 
+          && (resource.data.userId == request.auth.uid || 
+              get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
+      }
+    }
+    
+    // Règles pour la collection 'publications' (alternative)
+    match /publications/{postId} {
+      // Permettre la lecture à TOUS (public)
+      allow read: if true;
+      allow create: if request.auth != null 
+        && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null 
+        && resource.data.authorId == request.auth.uid;
+      allow delete: if request.auth != null 
+        && resource.data.authorId == request.auth.uid;
+    }
+    
+    // Règles pour les autres collections de posts possibles
+    match /post/{postId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    match /feed/{postId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // Règles pour les autres collections (payments, users, etc.)
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /users/{userId} {
+      // Les utilisateurs peuvent lire leur propre profil et les profils publics
+      allow read: if request.auth != null;
+      // Les utilisateurs peuvent mettre à jour leur propre profil
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Les utilisateurs peuvent créer leur propre profil
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Règles pour les follows (sous-collection)
+      match /following/{followingId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Règles pour les favoris
+    match /favorites/{favoriteId} {
+      // Permettre la lecture si l'utilisateur est authentifié ou si c'est son propre favori
+      allow read: if request.auth != null 
+        && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.postId is string;
+      allow delete: if request.auth != null 
+        && (resource.data.userId == request.auth.uid || favoriteId.matches(request.auth.uid + '_.*'));
+    }
+    
+    // Refuser l'accès à toutes les autres collections par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

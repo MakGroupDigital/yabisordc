@@ -32,6 +32,9 @@ export interface Post {
   caption: string;
   likes: number;
   comments: number;
+  favorites?: number;
+  shares?: number;
+  views?: number;
   createdAt: Date;
   updatedAt?: Date;
 }

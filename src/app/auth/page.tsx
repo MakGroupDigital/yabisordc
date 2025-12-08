@@ -6,16 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { auth } from '@/lib/firebase';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  signInWithCredential,
+  ConfirmationResult
 } from 'firebase/auth';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Phone, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast';
 
 function AuthPageContent() {
   const router = useRouter();
@@ -23,22 +30,94 @@ function AuthPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'error' | 'warning' | 'info'>('error');
   const [activeTab, setActiveTab] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
+  const [phoneStep, setPhoneStep] = useState<'phone' | 'code'>('phone');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const { toast } = useToast();
+
+  // Initialiser reCAPTCHA
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !recaptchaVerifier) {
+      try {
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA vérifié');
+          },
+          'expired-callback': () => {
+            console.log('reCAPTCHA expiré');
+          }
+        });
+        setRecaptchaVerifier(verifier);
+      } catch (error) {
+        console.error('Erreur initialisation reCAPTCHA:', error);
+      }
+    }
+    return () => {
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+      }
+    };
+  }, []);
 
   // Vérifier si l'utilisateur est déjà connecté
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        // Rediriger vers la page de création ou la page d'origine
-        const redirectTo = searchParams.get('redirect') || '/home/create';
+        const redirectTo = searchParams.get('redirect') || '/home';
         router.push(redirectTo);
       }
     });
     return () => unsubscribe();
   }, [router, searchParams]);
+
+  const getErrorMessage = (code: string): { message: string; type: 'error' | 'warning' | 'info' } => {
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return { message: 'Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.', type: 'warning' };
+      case 'auth/invalid-email':
+        return { message: 'Format d\'email invalide. Veuillez vérifier votre adresse email.', type: 'error' };
+      case 'auth/weak-password':
+        return { message: 'Le mot de passe doit contenir au moins 6 caractères.', type: 'warning' };
+      case 'auth/user-not-found':
+        return { message: 'Aucun compte trouvé avec cet email. Créez un compte ou vérifiez votre email.', type: 'info' };
+      case 'auth/wrong-password':
+        return { message: 'Mot de passe incorrect. Vérifiez votre mot de passe et réessayez.', type: 'error' };
+      case 'auth/invalid-credential':
+        return { message: 'Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.', type: 'error' };
+      case 'auth/invalid-login-credentials':
+        return { message: 'Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.', type: 'error' };
+      case 'auth/too-many-requests':
+        return { message: 'Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.', type: 'warning' };
+      case 'auth/network-request-failed':
+        return { message: 'Erreur de connexion. Vérifiez votre connexion internet et réessayez.', type: 'error' };
+      case 'auth/user-disabled':
+        return { message: 'Ce compte a été désactivé. Contactez le support pour plus d\'informations.', type: 'error' };
+      case 'auth/popup-closed-by-user':
+        return { message: 'La fenêtre de connexion a été fermée. Veuillez réessayer.', type: 'info' };
+      case 'auth/popup-blocked':
+        return { message: 'La fenêtre popup a été bloquée. Autorisez les popups pour ce site.', type: 'warning' };
+      case 'auth/cancelled-popup-request':
+        return { message: 'Connexion annulée. Veuillez réessayer.', type: 'info' };
+      case 'auth/invalid-phone-number':
+        return { message: 'Numéro de téléphone invalide. Utilisez le format international (ex: +243...).', type: 'error' };
+      case 'auth/invalid-verification-code':
+        return { message: 'Code de vérification incorrect. Vérifiez le code reçu par SMS.', type: 'error' };
+      case 'auth/code-expired':
+        return { message: 'Le code de vérification a expiré. Demandez un nouveau code.', type: 'warning' };
+      case 'auth/session-expired':
+        return { message: 'La session a expiré. Veuillez réessayer.', type: 'warning' };
+      default:
+        return { message: `Une erreur s'est produite: ${code}. Veuillez réessayer ou contacter le support.`, type: 'error' };
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,25 +126,32 @@ function AuthPageContent() {
 
     try {
       if (!displayName.trim()) {
-        setError('Le nom d\'utilisateur est requis');
+        const errorInfo = { message: 'Le nom d\'utilisateur est requis.', type: 'warning' as const };
+        setError(errorInfo.message);
+        setErrorType(errorInfo.type);
         setLoading(false);
         return;
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Mettre à jour le profil avec le nom d'affichage
       await updateProfile(userCredential.user, {
         displayName: displayName.trim()
       });
 
-      // Rediriger vers la page de création ou la page d'origine
-      const redirectTo = searchParams.get('redirect') || '/home/create';
+      toast({
+        title: "Inscription réussie",
+        description: "Votre compte a été créé avec succès !",
+      });
+
+      const redirectTo = searchParams.get('redirect') || '/home';
       router.push(redirectTo);
     } catch (err: any) {
       console.error('Erreur lors de l\'inscription:', err);
       const errorCode = err?.code || err?.message || 'unknown';
-      setError(getErrorMessage(errorCode));
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
     } finally {
       setLoading(false);
     }
@@ -78,13 +164,20 @@ function AuthPageContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Rediriger vers la page de création ou la page d'origine
-      const redirectTo = searchParams.get('redirect') || '/home/create';
+      
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur Ya Biso RDC !",
+      });
+
+      const redirectTo = searchParams.get('redirect') || '/home';
       router.push(redirectTo);
     } catch (err: any) {
       console.error('Erreur lors de la connexion:', err);
       const errorCode = err?.code || err?.message || 'unknown';
-      setError(getErrorMessage(errorCode));
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
     } finally {
       setLoading(false);
     }
@@ -96,42 +189,135 @@ function AuthPageContent() {
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // Rediriger vers la page de création ou la page d'origine
-      const redirectTo = searchParams.get('redirect') || '/home/create';
+      // Ajouter des scopes si nécessaire
+      provider.addScope('profile');
+      provider.addScope('email');
+      // Personnaliser les paramètres
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
+      const result = await signInWithPopup(auth, provider);
+      
+      toast({
+        title: "Connexion réussie",
+        description: `Bienvenue ${result.user.displayName || 'sur Ya Biso RDC'} !`,
+      });
+
+      const redirectTo = searchParams.get('redirect') || '/home';
       router.push(redirectTo);
     } catch (err: any) {
       console.error('Erreur lors de la connexion Google:', err);
       const errorCode = err?.code || err?.message || 'unknown';
-      setError(getErrorMessage(errorCode));
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
       setLoading(false);
     }
   };
 
-  const getErrorMessage = (code: string): string => {
-    switch (code) {
-      case 'auth/email-already-in-use':
-        return 'Cet email est déjà utilisé';
-      case 'auth/invalid-email':
-        return 'Email invalide';
-      case 'auth/weak-password':
-        return 'Le mot de passe doit contenir au moins 6 caractères';
-      case 'auth/user-not-found':
-        return 'Aucun compte trouvé avec cet email. Vérifiez votre email ou créez un compte';
-      case 'auth/wrong-password':
-        return 'Mot de passe incorrect';
-      case 'auth/invalid-credential':
-        return 'Email ou mot de passe incorrect. Vérifiez vos identifiants';
-      case 'auth/invalid-login-credentials':
-        return 'Email ou mot de passe incorrect. Vérifiez vos identifiants';
-      case 'auth/too-many-requests':
-        return 'Trop de tentatives. Réessayez plus tard';
-      case 'auth/network-request-failed':
-        return 'Erreur de connexion. Vérifiez votre connexion internet';
-      case 'auth/user-disabled':
-        return 'Ce compte a été désactivé';
-      default:
-        return `Erreur: ${code}. Veuillez réessayer ou contacter le support`;
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (!phoneNumber.trim()) {
+        setError('Le numéro de téléphone est requis.');
+        setErrorType('warning');
+        setLoading(false);
+        return;
+      }
+
+      // Formater le numéro (ajouter + si nécessaire)
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+
+      if (!recaptchaVerifier) {
+        throw new Error('reCAPTCHA non initialisé');
+      }
+
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+      setConfirmationResult(confirmation);
+      setPhoneStep('code');
+      
+      toast({
+        title: "Code envoyé",
+        description: "Un code de vérification a été envoyé à votre téléphone.",
+      });
+    } catch (err: any) {
+      console.error('Erreur lors de l\'envoi du code:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (!confirmationResult) {
+        throw new Error('Aucune confirmation en cours');
+      }
+
+      if (!verificationCode.trim()) {
+        setError('Le code de vérification est requis.');
+        setErrorType('warning');
+        setLoading(false);
+        return;
+      }
+
+      await confirmationResult.confirm(verificationCode);
+      
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur Ya Biso RDC !",
+      });
+
+      const redirectTo = searchParams.get('redirect') || '/home';
+      router.push(redirectTo);
+    } catch (err: any) {
+      console.error('Erreur lors de la vérification du code:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+      
+      if (!recaptchaVerifier) {
+        throw new Error('reCAPTCHA non initialisé');
+      }
+
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+      setConfirmationResult(confirmation);
+      
+      toast({
+        title: "Code renvoyé",
+        description: "Un nouveau code a été envoyé à votre téléphone.",
+      });
+    } catch (err: any) {
+      console.error('Erreur lors du renvoi du code:', err);
+      const errorCode = err?.code || err?.message || 'unknown';
+      const errorInfo = getErrorMessage(errorCode);
+      setError(errorInfo.message);
+      setErrorType(errorInfo.type);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -157,14 +343,26 @@ function AuthPageContent() {
           </p>
         </div>
 
+        {/* reCAPTCHA Container (invisible) */}
+        <div id="recaptcha-container"></div>
+
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-sm">
+        <Tabs value={activeTab} onValueChange={(value) => {
+          setActiveTab(value);
+          setError(null);
+          setPhoneStep('phone');
+          setVerificationCode('');
+          setConfirmationResult(null);
+        }} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm">
             <TabsTrigger value="login" className="text-white data-[state=active]:bg-[#FF8800]">
               Connexion
             </TabsTrigger>
             <TabsTrigger value="signup" className="text-white data-[state=active]:bg-[#FF8800]">
               Inscription
+            </TabsTrigger>
+            <TabsTrigger value="phone" className="text-white data-[state=active]:bg-[#FF8800]">
+              Téléphone
             </TabsTrigger>
           </TabsList>
 
@@ -173,9 +371,22 @@ function AuthPageContent() {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
               <form onSubmit={handleSignIn} className="space-y-4">
                 {error && (
-                  <div className="bg-red-500/20 border border-red-500 text-red-200 rounded-lg p-3 text-sm">
-                    {error}
-                  </div>
+                  <Alert 
+                    variant={errorType === 'error' ? 'destructive' : errorType === 'warning' ? 'warning' : 'info'}
+                    className="animate-in slide-in-from-top-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle className="font-semibold">
+                      {errorType === 'error' ? 'Erreur' : errorType === 'warning' ? 'Attention' : 'Information'}
+                    </AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                    <button
+                      onClick={() => setError(null)}
+                      className="absolute right-2 top-2 text-current opacity-70 hover:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </Alert>
                 )}
 
                 <div className="space-y-2">
@@ -281,9 +492,22 @@ function AuthPageContent() {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
               <form onSubmit={handleSignUp} className="space-y-4">
                 {error && (
-                  <div className="bg-red-500/20 border border-red-500 text-red-200 rounded-lg p-3 text-sm">
-                    {error}
-                  </div>
+                  <Alert 
+                    variant={errorType === 'error' ? 'destructive' : errorType === 'warning' ? 'warning' : 'info'}
+                    className="animate-in slide-in-from-top-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle className="font-semibold">
+                      {errorType === 'error' ? 'Erreur' : errorType === 'warning' ? 'Attention' : 'Information'}
+                    </AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                    <button
+                      onClick={() => setError(null)}
+                      className="absolute right-2 top-2 text-current opacity-70 hover:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </Alert>
                 )}
 
                 <div className="space-y-2">
@@ -402,6 +626,153 @@ function AuthPageContent() {
               </Button>
             </div>
           </TabsContent>
+
+          {/* Connexion par téléphone */}
+          <TabsContent value="phone" className="mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              {phoneStep === 'phone' ? (
+                <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                  {error && (
+                    <Alert 
+                      variant={errorType === 'error' ? 'destructive' : errorType === 'warning' ? 'warning' : 'info'}
+                      className="animate-in slide-in-from-top-2"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle className="font-semibold">
+                        {errorType === 'error' ? 'Erreur' : errorType === 'warning' ? 'Attention' : 'Information'}
+                      </AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                      <button
+                        onClick={() => setError(null)}
+                        className="absolute right-2 top-2 text-current opacity-70 hover:opacity-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone-number" className="text-white">
+                      Numéro de téléphone
+                    </Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
+                      <Input
+                        id="phone-number"
+                        type="tel"
+                        placeholder="+243 900 000 000"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        required
+                        className="bg-white/20 border-white/30 text-white placeholder:text-white/50 pl-10"
+                      />
+                    </div>
+                    <p className="text-xs text-white/60">
+                      Format international requis (ex: +243 900 000 000)
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Envoi du code...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Envoyer le code
+                      </>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleCodeSubmit} className="space-y-4">
+                  {error && (
+                    <Alert 
+                      variant={errorType === 'error' ? 'destructive' : errorType === 'warning' ? 'warning' : 'info'}
+                      className="animate-in slide-in-from-top-2"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle className="font-semibold">
+                        {errorType === 'error' ? 'Erreur' : errorType === 'warning' ? 'Attention' : 'Information'}
+                      </AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                      <button
+                        onClick={() => setError(null)}
+                        className="absolute right-2 top-2 text-current opacity-70 hover:opacity-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="verification-code" className="text-white">
+                      Code de vérification
+                    </Label>
+                    <Input
+                      id="verification-code"
+                      type="text"
+                      placeholder="123456"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      maxLength={6}
+                      className="bg-white/20 border-white/30 text-white placeholder:text-white/50 text-center text-2xl tracking-widest"
+                    />
+                    <p className="text-xs text-white/60 text-center">
+                      Entrez le code à 6 chiffres reçu par SMS
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setPhoneStep('phone');
+                        setVerificationCode('');
+                        setConfirmationResult(null);
+                        setError(null);
+                      }}
+                      className="flex-1 border-white/30 text-white hover:bg-white/20"
+                    >
+                      Retour
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Vérification...
+                        </>
+                      ) : (
+                        'Vérifier'
+                      )}
+                    </Button>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleResendCode}
+                    disabled={loading}
+                    className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    Renvoyer le code
+                  </Button>
+                </form>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -419,4 +790,3 @@ export default function AuthPage() {
     </Suspense>
   );
 }
-

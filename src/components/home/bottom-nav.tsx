@@ -26,8 +26,8 @@ export function BottomNav() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-[#003366]/80 to-transparent backdrop-blur-md md:hidden">
-      <div className="container mx-auto flex h-24 max-w-2xl items-center justify-around px-0 pt-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-[#003366]/95 via-[#003366]/80 to-transparent backdrop-blur-md md:hidden pointer-events-none">
+      <div className="container mx-auto flex h-20 max-w-2xl items-center justify-around px-0 pt-2 pointer-events-auto">
         {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path || (item.path === '/home' && pathname === '/home');

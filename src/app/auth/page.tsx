@@ -525,16 +525,26 @@ function AuthPageContent() {
       // Gestion spécifique des erreurs
       if (err?.code === 'auth/invalid-app-credential') {
         const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
-        const errorMessage = `Configuration Firebase invalide pour l'authentification par téléphone.
-
-Vérifiez dans Firebase Console :
-1. Authentication > Sign-in method > Phone : ACTIVÉ
-2. Authentication > Settings > Authorized domains : ${currentDomain} doit être dans la liste
-3. Authentication > Settings > reCAPTCHA : Configuré et activé
-4. Project Settings > General : Vérifiez que votre app web est bien enregistrée
-
-Domaine actuel : ${currentDomain}
-Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions détaillées.`;
+        const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const isLocalhost = currentDomain === 'localhost';
+        
+        let errorMessage = `Configuration Firebase invalide pour l'authentification par téléphone.\n\n`;
+        
+        if (isLocalhost) {
+          errorMessage += `⚠️ SOLUTION RAPIDE : Utilisez 127.0.0.1 au lieu de localhost\n`;
+          errorMessage += `   Remplacez ${currentUrl} par http://127.0.0.1:3000\n\n`;
+        }
+        
+        errorMessage += `Vérifiez dans Firebase Console :\n`;
+        errorMessage += `1. Authentication > Sign-in method > Phone : ACTIVÉ\n`;
+        errorMessage += `2. Authentication > Settings > Authorized domains :\n`;
+        errorMessage += `   - ${currentDomain} doit être présent\n`;
+        if (isLocalhost) {
+          errorMessage += `   - 127.0.0.1 doit aussi être présent\n`;
+        }
+        errorMessage += `3. Authentication > Settings > reCAPTCHA : Configuré\n\n`;
+        errorMessage += `Domaine actuel : ${currentDomain}`;
+        
         setError(errorMessage);
         setErrorType('error');
         
@@ -542,6 +552,10 @@ Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions détaillées.`;
         console.error('🔴 ERREUR auth/invalid-app-credential');
         console.error('📋 Informations de diagnostic:');
         console.error('  - Domaine actuel:', currentDomain);
+        console.error('  - URL actuelle:', currentUrl);
+        if (isLocalhost) {
+          console.error('  ⚠️  SOLUTION: Utilisez http://127.0.0.1:3000 au lieu de localhost');
+        }
         console.error('  - Auth domain configuré:', auth.app.options.authDomain);
         console.error('  - Project ID:', auth.app.options.projectId);
         console.error('  - API Key:', auth.app.options.apiKey?.substring(0, 20) + '...');

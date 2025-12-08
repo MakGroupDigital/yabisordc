@@ -41,6 +41,7 @@ Vous devez configurer Firebase Console **MAINTENANT** pour que l'authentificatio
 2. Allez dans la section **Authorized domains**
 3. **VÉRIFIEZ** que les domaines suivants sont dans la liste :
    - ✅ `localhost` (pour le développement local)
+   - ✅ `127.0.0.1` (⚠️ IMPORTANT : ajoutez aussi cette adresse IP)
    - ✅ Votre domaine de production (si vous en avez un)
    - ✅ Tous les domaines Firebase Hosting associés (ex: `votre-app.web.app`)
 
@@ -48,11 +49,16 @@ Vous devez configurer Firebase Console **MAINTENANT** pour que l'authentificatio
    - Cliquez sur **Add domain**
    - Entrez votre domaine (ex: `localhost` pour le dev, ou votre domaine de prod)
    - Cliquez sur **Add**
+   - ⚠️ **RÉPÉTEZ** pour ajouter aussi `127.0.0.1`
    - ⚠️ **SAUVEGARDEZ** les modifications
 
 **⚠️ ATTENTION** : Si votre domaine actuel n'est pas dans la liste, l'authentification par téléphone **NE FONCTIONNERA PAS** et vous obtiendrez l'erreur `auth/invalid-app-credential`.
 
-**Pour vérifier votre domaine actuel** : Regardez la barre d'adresse de votre navigateur. Si vous êtes sur `localhost:3000`, alors `localhost` doit être dans la liste.
+**💡 SOLUTION RAPIDE** : Si vous utilisez `localhost`, essayez d'utiliser `127.0.0.1` à la place dans votre URL :
+   - Au lieu de : `http://localhost:3000`
+   - Utilisez : `http://127.0.0.1:3000`
+
+**Pour vérifier votre domaine actuel** : Regardez la barre d'adresse de votre navigateur. Si vous êtes sur `localhost:3000`, alors `localhost` ET `127.0.0.1` doivent être dans la liste.
 
 ### 4. Vérifier la Configuration de l'Application
 

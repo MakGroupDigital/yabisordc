@@ -9,7 +9,10 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "setup:phone-auth": "node scripts/setup-phone-auth.js",
+    "open:firebase": "node scripts/open-firebase-console.js",
+    "check:firebase": "firebase projects:list"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",

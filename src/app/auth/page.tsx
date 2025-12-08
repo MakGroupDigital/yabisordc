@@ -23,6 +23,7 @@ import {
 import { Loader2, Eye, EyeOff, Phone, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { FirebaseConfigChecker } from './check-config';
 
 function AuthPageContent() {
   const router = useRouter();
@@ -996,6 +997,7 @@ Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions détaillées.`;
 
           {/* Connexion par téléphone */}
           <TabsContent value="phone" className="mt-6">
+            <FirebaseConfigChecker />
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
               {phoneStep === 'phone' ? (
                 <form onSubmit={handlePhoneSubmit} className="space-y-4">

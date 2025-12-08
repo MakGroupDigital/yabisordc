@@ -10,7 +10,6 @@ import {
     Bookmark, 
     Volume2,
     VolumeX,
-    Play,
     UserPlus,
     X,
     Copy,
@@ -862,10 +861,6 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                                         }
                                     }}
                                 />
-                                <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                                    <Play className="h-4 w-4 text-white fill-white" />
-                                    <span className="text-white text-xs font-semibold">Vidéo</span>
-                                </div>
                             </>
                         )}
                     </div>
@@ -882,10 +877,7 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                     <div className="flex items-center gap-2 pointer-events-auto">
                         <span className="text-[#FFCC00] font-headline font-semibold text-sm">#PonaYo</span>
                     </div>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-white hover:bg-white/20 rounded-full pointer-events-auto z-30"
+                    <button
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -895,13 +887,47 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                             e.preventDefault();
                             e.stopPropagation();
                         }}
-                    >
-                        {isSoundEnabled ? (
-                            <Volume2 className="h-5 w-5" />
-                        ) : (
-                            <VolumeX className="h-5 w-5" />
+                        className={cn(
+                            "relative pointer-events-auto z-30 group transition-all duration-300",
+                            "h-12 w-12 rounded-full flex items-center justify-center",
+                            "backdrop-blur-md border-2 transition-all duration-300",
+                            "shadow-lg hover:shadow-xl hover:scale-110 active:scale-95",
+                            isSoundEnabled
+                                ? "bg-gradient-to-br from-[#FF8800] to-[#FFCC00] border-[#FFCC00]/50 shadow-[#FF8800]/30"
+                                : "bg-black/60 border-white/30 hover:border-white/50"
                         )}
-                    </Button>
+                    >
+                        {/* Effet de brillance au hover */}
+                        <div className={cn(
+                            "absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+                            "bg-gradient-to-br from-[#FFCC00]/20 to-[#FF8800]/20 blur-sm"
+                        )} />
+                        
+                        {/* Icône */}
+                        <div className="relative z-10">
+                            {isSoundEnabled ? (
+                                <Volume2 className={cn(
+                                    "h-6 w-6 transition-all duration-300",
+                                    "text-white drop-shadow-lg",
+                                    "group-hover:scale-110"
+                                )} />
+                            ) : (
+                                <VolumeX className={cn(
+                                    "h-6 w-6 transition-all duration-300",
+                                    "text-white/80 group-hover:text-white",
+                                    "group-hover:scale-110"
+                                )} />
+                            )}
+                        </div>
+                        
+                        {/* Indicateur animé quand le son est activé */}
+                        {isSoundEnabled && (
+                            <div className="absolute inset-0 rounded-full">
+                                <div className="absolute inset-0 rounded-full border-2 border-[#FFCC00]/50 animate-ping opacity-75" />
+                                <div className="absolute inset-1 rounded-full border border-[#FFCC00]/30 animate-pulse" />
+                            </div>
+                        )}
+                    </button>
                 </div>
 
                 {/* Contenu principal */}
@@ -932,7 +958,16 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                                 {description}
                                 {' '}
                                 {hashtags.map(tag => (
-                                    <span key={tag} className="text-[#FFCC00] font-medium cursor-pointer hover:underline">
+                                    <span 
+                                        key={tag} 
+                                        className="text-[#FFCC00] font-medium cursor-pointer hover:underline transition-all hover:text-[#FF8800]"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const tagWithoutHash = tag.replace(/^#/, '');
+                                            router.push(`/home/hashtag/${encodeURIComponent(tagWithoutHash)}`);
+                                        }}
+                                    >
                                         {tag}{' '}
                                     </span>
                                 ))}

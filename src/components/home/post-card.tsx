@@ -21,6 +21,7 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
+    const router = useRouter();
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(post.likes);
     const [isBookmarked, setIsBookmarked] = useState(false);
@@ -154,7 +156,18 @@ export function PostCard({ post }: PostCardProps) {
             {description}
             {' '}
             {hashtags.map(tag => (
-                <span key={tag} className="text-[#339966] font-medium cursor-pointer hover:underline">{tag} </span>
+                <span 
+                    key={tag} 
+                    className="text-[#339966] font-medium cursor-pointer hover:underline transition-all hover:text-[#FF8800]"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const tagWithoutHash = tag.replace(/^#/, '');
+                        router.push(`/home/hashtag/${encodeURIComponent(tagWithoutHash)}`);
+                    }}
+                >
+                    {tag}{' '}
+                </span>
             ))}
         </p>
       </div>

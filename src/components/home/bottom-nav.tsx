@@ -1,16 +1,44 @@
 
 'use client';
 
-import { Home, Search, Heart, User, PlusCircle } from 'lucide-react';
+import { Home, Heart, User, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname, useRouter } from 'next/navigation';
 
 type NavItemName = 'Accueil' | 'Explorer' | 'Créer' | 'Favoris' | 'Profil';
 
+// Icône de jumelles personnalisée
+const Binoculars = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Jumelle gauche - cercle extérieur */}
+    <circle cx="7" cy="12" r="5" />
+    {/* Jumelle gauche - cercle intérieur (oculaire) */}
+    <circle cx="7" cy="12" r="3" fill="currentColor" opacity="0.3" />
+    {/* Jumelle droite - cercle extérieur */}
+    <circle cx="17" cy="12" r="5" />
+    {/* Jumelle droite - cercle intérieur (oculaire) */}
+    <circle cx="17" cy="12" r="3" fill="currentColor" opacity="0.3" />
+    {/* Lien central entre les jumelles */}
+    <rect x="10" y="10" width="4" height="4" rx="1" fill="currentColor" />
+    {/* Barre de connexion supérieure */}
+    <path d="M10 8h4" strokeWidth="2.5" />
+    {/* Barre de connexion inférieure */}
+    <path d="M10 16h4" strokeWidth="2.5" />
+  </svg>
+);
+
 const navItems = [
     { name: 'Accueil', icon: Home, path: '/home' },
-    { name: 'Explorer', icon: Search, path: '/home/explorer' },
+    { name: 'Explorer', icon: Binoculars, path: '/home/explorer' },
     { name: 'Créer', icon: PlusCircle, path: '/home/create', isCentral: true },
     { name: 'Favoris', icon: Heart, path: '/home/favorites' },
     { name: 'Profil', icon: User, path: '/home/profile' },

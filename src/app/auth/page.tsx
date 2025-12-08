@@ -42,30 +42,78 @@ function AuthPageContent() {
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
   const { toast } = useToast();
 
-  // Initialiser reCAPTCHA
+  // Initialiser reCAPTCHA - Amélioré
   useEffect(() => {
-    if (typeof window !== 'undefined' && !recaptchaVerifier) {
+    if (typeof window === 'undefined') return;
+
+    // Attendre que le DOM soit prêt
+    const initRecaptcha = () => {
+      const container = document.getElementById('recaptcha-container');
+      if (!container) {
+        console.warn('Container reCAPTCHA non trouvé, réessai dans 100ms...');
+        setTimeout(initRecaptcha, 100);
+        return;
+      }
+
+      // Nettoyer l'ancien verifier s'il existe
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (e) {
+          console.warn('Erreur lors du nettoyage du reCAPTCHA:', e);
+        }
+      }
+
       try {
+        // Vérifier si le container a déjà un widget
+        if (container.children.length > 0) {
+          container.innerHTML = '';
+        }
+
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA vérifié');
+          callback: (response: string) => {
+            console.log('✅ reCAPTCHA vérifié avec succès:', response);
           },
           'expired-callback': () => {
-            console.log('reCAPTCHA expiré');
+            console.warn('⚠️ reCAPTCHA expiré, réinitialisation...');
+            // Réinitialiser le verifier
+            if (recaptchaVerifier) {
+              recaptchaVerifier.clear();
+            }
+            setRecaptchaVerifier(null);
+            initRecaptcha();
+          },
+          'error-callback': (error: any) => {
+            console.error('❌ Erreur reCAPTCHA:', error);
+            setError('Erreur de vérification reCAPTCHA. Veuillez rafraîchir la page.');
+            setErrorType('error');
           }
         });
+
+        console.log('✅ reCAPTCHA initialisé avec succès');
         setRecaptchaVerifier(verifier);
-      } catch (error) {
-        console.error('Erreur initialisation reCAPTCHA:', error);
-      }
-    }
-    return () => {
-      if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
+      } catch (error: any) {
+        console.error('❌ Erreur initialisation reCAPTCHA:', error);
+        setError(`Erreur d'initialisation: ${error.message || 'Erreur inconnue'}`);
+        setErrorType('error');
       }
     };
-  }, []);
+
+    // Démarrer l'initialisation après un court délai pour s'assurer que le DOM est prêt
+    const timer = setTimeout(initRecaptcha, 200);
+
+    return () => {
+      clearTimeout(timer);
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (e) {
+          console.warn('Erreur lors du nettoyage:', e);
+        }
+      }
+    };
+  }, [activeTab]); // Réinitialiser quand on change d'onglet
 
   // Vérifier si l'utilisateur est déjà connecté
   useEffect(() => {
@@ -107,13 +155,21 @@ function AuthPageContent() {
       case 'auth/cancelled-popup-request':
         return { message: 'Connexion annulée. Veuillez réessayer.', type: 'info' };
       case 'auth/invalid-phone-number':
-        return { message: 'Numéro de téléphone invalide. Utilisez le format international (ex: +243...).', type: 'error' };
+        return { message: 'Numéro de téléphone invalide. Utilisez le format international (ex: +243900000000).', type: 'error' };
       case 'auth/invalid-verification-code':
         return { message: 'Code de vérification incorrect. Vérifiez le code reçu par SMS.', type: 'error' };
       case 'auth/code-expired':
         return { message: 'Le code de vérification a expiré. Demandez un nouveau code.', type: 'warning' };
       case 'auth/session-expired':
         return { message: 'La session a expiré. Veuillez réessayer.', type: 'warning' };
+      case 'auth/recaptcha-not-enabled':
+        return { message: 'reCAPTCHA n\'est pas activé. Veuillez contacter le support.', type: 'error' };
+      case 'auth/missing-phone-number':
+        return { message: 'Le numéro de téléphone est requis.', type: 'error' };
+      case 'auth/quota-exceeded':
+        return { message: 'Quota de SMS dépassé. Veuillez réessayer plus tard.', type: 'warning' };
+      case 'auth/app-not-authorized':
+        return { message: 'L\'application n\'est pas autorisée. Vérifiez la configuration Firebase.', type: 'error' };
       default:
         return { message: `Une erreur s'est produite: ${code}. Veuillez réessayer ou contacter le support.`, type: 'error' };
     }
@@ -229,14 +285,54 @@ function AuthPageContent() {
         return;
       }
 
-      // Formater le numéro (ajouter + si nécessaire)
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-
-      if (!recaptchaVerifier) {
-        throw new Error('reCAPTCHA non initialisé');
+      // Formater le numéro (ajouter + si nécessaire et nettoyer)
+      let formattedPhone = phoneNumber.trim().replace(/\s+/g, '');
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = `+${formattedPhone}`;
       }
 
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+      // Validation basique du format
+      if (!/^\+[1-9]\d{1,14}$/.test(formattedPhone)) {
+        setError('Format de numéro invalide. Utilisez le format international (ex: +243900000000).');
+        setErrorType('error');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📱 Tentative d\'envoi de code à:', formattedPhone);
+
+      // Vérifier et réinitialiser reCAPTCHA si nécessaire
+      let verifier = recaptchaVerifier;
+      if (!verifier) {
+        console.log('🔄 Réinitialisation du reCAPTCHA...');
+        const container = document.getElementById('recaptcha-container');
+        if (!container) {
+          throw new Error('Container reCAPTCHA non trouvé dans le DOM');
+        }
+
+        // Nettoyer le container
+        container.innerHTML = '';
+
+        verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: (response: string) => {
+            console.log('✅ reCAPTCHA vérifié:', response);
+          },
+          'expired-callback': () => {
+            console.warn('⚠️ reCAPTCHA expiré');
+          },
+          'error-callback': (error: any) => {
+            console.error('❌ Erreur reCAPTCHA:', error);
+          }
+        });
+
+        setRecaptchaVerifier(verifier);
+      }
+
+      console.log('📤 Envoi du code de vérification...');
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
+      
+      console.log('✅ Code envoyé avec succès');
       setConfirmationResult(confirmation);
       setPhoneStep('code');
       
@@ -245,11 +341,39 @@ function AuthPageContent() {
         description: "Un code de vérification a été envoyé à votre téléphone.",
       });
     } catch (err: any) {
-      console.error('Erreur lors de l\'envoi du code:', err);
-      const errorCode = err?.code || err?.message || 'unknown';
-      const errorInfo = getErrorMessage(errorCode);
-      setError(errorInfo.message);
-      setErrorType(errorInfo.type);
+      console.error('❌ Erreur lors de l\'envoi du code:', err);
+      console.error('Détails de l\'erreur:', {
+        code: err?.code,
+        message: err?.message,
+        stack: err?.stack
+      });
+
+      // Gestion spécifique des erreurs reCAPTCHA
+      if (err?.code === 'auth/recaptcha-not-enabled' || err?.message?.includes('recaptcha')) {
+        setError('reCAPTCHA n\'est pas activé. Veuillez contacter le support.');
+        setErrorType('error');
+      } else if (err?.code === 'auth/invalid-phone-number') {
+        setError('Numéro de téléphone invalide. Utilisez le format international (ex: +243900000000).');
+        setErrorType('error');
+      } else if (err?.code === 'auth/too-many-requests') {
+        setError('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.');
+        setErrorType('warning');
+      } else {
+        const errorCode = err?.code || err?.message || 'unknown';
+        const errorInfo = getErrorMessage(errorCode);
+        setError(errorInfo.message);
+        setErrorType(errorInfo.type);
+      }
+
+      // Réinitialiser le verifier en cas d'erreur
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (clearError) {
+          console.warn('Erreur lors du nettoyage:', clearError);
+        }
+        setRecaptchaVerifier(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -297,13 +421,36 @@ function AuthPageContent() {
     setLoading(true);
 
     try {
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-      
-      if (!recaptchaVerifier) {
-        throw new Error('reCAPTCHA non initialisé');
+      // Formater le numéro
+      let formattedPhone = phoneNumber.trim().replace(/\s+/g, '');
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = `+${formattedPhone}`;
       }
 
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+      // Vérifier et réinitialiser reCAPTCHA si nécessaire
+      let verifier = recaptchaVerifier;
+      if (!verifier) {
+        const container = document.getElementById('recaptcha-container');
+        if (!container) {
+          throw new Error('Container reCAPTCHA non trouvé');
+        }
+
+        container.innerHTML = '';
+
+        verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: (response: string) => {
+            console.log('✅ reCAPTCHA vérifié:', response);
+          },
+          'expired-callback': () => {
+            console.warn('⚠️ reCAPTCHA expiré');
+          }
+        });
+
+        setRecaptchaVerifier(verifier);
+      }
+
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(confirmation);
       
       toast({
@@ -311,11 +458,21 @@ function AuthPageContent() {
         description: "Un nouveau code a été envoyé à votre téléphone.",
       });
     } catch (err: any) {
-      console.error('Erreur lors du renvoi du code:', err);
+      console.error('❌ Erreur lors du renvoi du code:', err);
       const errorCode = err?.code || err?.message || 'unknown';
       const errorInfo = getErrorMessage(errorCode);
       setError(errorInfo.message);
       setErrorType(errorInfo.type);
+
+      // Réinitialiser le verifier en cas d'erreur
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (clearError) {
+          console.warn('Erreur lors du nettoyage:', clearError);
+        }
+        setRecaptchaVerifier(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -343,8 +500,18 @@ function AuthPageContent() {
           </p>
         </div>
 
-        {/* reCAPTCHA Container (invisible) */}
-        <div id="recaptcha-container"></div>
+        {/* reCAPTCHA Container (invisible) - Doit être présent dans le DOM */}
+        <div 
+          id="recaptcha-container" 
+          style={{ 
+            position: 'absolute', 
+            top: '-9999px', 
+            left: '-9999px',
+            visibility: 'hidden',
+            width: '1px',
+            height: '1px'
+          }}
+        ></div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => {

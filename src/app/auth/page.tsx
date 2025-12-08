@@ -249,6 +249,11 @@ function AuthPageContent() {
         return { message: 'La session a expiré. Veuillez réessayer.', type: 'warning' };
       case 'auth/recaptcha-not-enabled':
         return { message: 'reCAPTCHA n\'est pas activé. Veuillez contacter le support.', type: 'error' };
+      case 'auth/captcha-check-failed':
+        return { 
+          message: 'Vérification reCAPTCHA échouée. Le domaine n\'est pas autorisé dans la configuration reCAPTCHA Enterprise. Vérifiez que localhost et 127.0.0.1 sont autorisés dans Google reCAPTCHA Console.', 
+          type: 'error' 
+        };
       case 'auth/missing-phone-number':
         return { message: 'Le numéro de téléphone est requis.', type: 'error' };
       case 'auth/quota-exceeded':
@@ -560,6 +565,36 @@ function AuthPageContent() {
         console.error('  - Project ID:', auth.app.options.projectId);
         console.error('  - API Key:', auth.app.options.apiKey?.substring(0, 20) + '...');
         console.error('📖 Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions complètes');
+      } else if (err?.code === 'auth/captcha-check-failed') {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+        const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+        
+        let errorMessage = `🔒 Vérification reCAPTCHA Enterprise échouée\n\n`;
+        errorMessage += `Le domaine "${currentDomain}" n'est pas autorisé dans la configuration reCAPTCHA Enterprise.\n\n`;
+        errorMessage += `📋 SOLUTION :\n`;
+        errorMessage += `1. Accédez à Google reCAPTCHA Enterprise Console :\n`;
+        errorMessage += `   https://console.cloud.google.com/security/recaptcha?project=studio-3821305079-74f59\n\n`;
+        errorMessage += `2. Cliquez sur votre clé reCAPTCHA (Site Key: 6LcmLSUs...)\n\n`;
+        errorMessage += `3. Dans "Domaines autorisés", ajoutez :\n`;
+        errorMessage += `   - localhost\n`;
+        errorMessage += `   - 127.0.0.1\n`;
+        errorMessage += `   - ${currentDomain}${currentDomain !== 'localhost' && currentDomain !== '127.0.0.1' ? ' (si différent)' : ''}\n`;
+        errorMessage += `   - Votre domaine de production\n\n`;
+        errorMessage += `4. Enregistrez les modifications et attendez 1-2 minutes\n\n`;
+        errorMessage += `5. Rafraîchissez cette page et réessayez\n\n`;
+        errorMessage += `🌐 URL actuelle : ${currentUrl}`;
+        
+        setError(errorMessage);
+        setErrorType('error');
+        
+        // Log détaillé pour le débogage
+        console.error('🔴 ERREUR auth/captcha-check-failed');
+        console.error('📋 Informations de diagnostic:');
+        console.error('  - Domaine actuel:', currentDomain);
+        console.error('  - URL actuelle:', currentUrl);
+        console.error('  - reCAPTCHA Site Key:', '6LcmLSUsAAAAAOMudj7WEMUnOvHoRZo0JyORN3ia');
+        console.error('  - Project ID:', auth.app.options.projectId);
+        console.error('📖 Consultez RECAPTCHA_ENTERPRISE_SETUP.md pour les instructions complètes');
       } else if (err?.code === 'auth/recaptcha-not-enabled' || err?.message?.includes('recaptcha')) {
         setError('reCAPTCHA n\'est pas activé. Activez-le dans Firebase Console > Authentication > Settings > reCAPTCHA.');
         setErrorType('error');

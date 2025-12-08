@@ -113,6 +113,17 @@ Le numéro doit être au format international :
 - Vérifiez que votre domaine est autorisé
 - Vérifiez que reCAPTCHA est configuré
 
+### Erreur : `auth/captcha-check-failed` ⚠️ NOUVEAU
+**"Hostname match not found"** signifie que le domaine n'est pas autorisé dans reCAPTCHA Enterprise.
+
+**Solution :**
+1. Consultez le guide détaillé : **[RECAPTCHA_ENTERPRISE_SETUP.md](./RECAPTCHA_ENTERPRISE_SETUP.md)**
+2. Accédez à [Google reCAPTCHA Enterprise Console](https://console.cloud.google.com/security/recaptcha?project=studio-3821305079-74f59)
+3. Ouvrez votre clé reCAPTCHA (Site Key: `6LcmLSUs...`)
+4. Ajoutez les domaines autorisés : `localhost`, `127.0.0.1`, et votre domaine de production
+5. Enregistrez et attendez 1-2 minutes
+6. Rafraîchissez l'application
+
 ### Erreur : `auth/recaptcha-not-enabled`
 - Activez reCAPTCHA dans Firebase Console
 - Vérifiez la configuration des domaines

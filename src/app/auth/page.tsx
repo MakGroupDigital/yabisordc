@@ -524,8 +524,28 @@ function AuthPageContent() {
 
       // Gestion spécifique des erreurs
       if (err?.code === 'auth/invalid-app-credential') {
-        setError('Configuration Firebase invalide. Vérifiez dans Firebase Console : 1) Authentication > Sign-in method > Phone est activé, 2) Votre domaine est dans la liste des domaines autorisés, 3) reCAPTCHA est configuré. Consultez FIREBASE_PHONE_AUTH_SETUP.md pour plus de détails.');
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+        const errorMessage = `Configuration Firebase invalide pour l'authentification par téléphone.
+
+Vérifiez dans Firebase Console :
+1. Authentication > Sign-in method > Phone : ACTIVÉ
+2. Authentication > Settings > Authorized domains : ${currentDomain} doit être dans la liste
+3. Authentication > Settings > reCAPTCHA : Configuré et activé
+4. Project Settings > General : Vérifiez que votre app web est bien enregistrée
+
+Domaine actuel : ${currentDomain}
+Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions détaillées.`;
+        setError(errorMessage);
         setErrorType('error');
+        
+        // Log détaillé pour le débogage
+        console.error('🔴 ERREUR auth/invalid-app-credential');
+        console.error('📋 Informations de diagnostic:');
+        console.error('  - Domaine actuel:', currentDomain);
+        console.error('  - Auth domain configuré:', auth.app.options.authDomain);
+        console.error('  - Project ID:', auth.app.options.projectId);
+        console.error('  - API Key:', auth.app.options.apiKey?.substring(0, 20) + '...');
+        console.error('📖 Consultez FIREBASE_PHONE_AUTH_SETUP.md pour les instructions complètes');
       } else if (err?.code === 'auth/recaptcha-not-enabled' || err?.message?.includes('recaptcha')) {
         setError('reCAPTCHA n\'est pas activé. Activez-le dans Firebase Console > Authentication > Settings > reCAPTCHA.');
         setErrorType('error');

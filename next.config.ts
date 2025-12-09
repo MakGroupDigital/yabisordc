@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
   // Optimisations de performance
   compress: true,
   poweredByHeader: false,
+  // Configuration webpack pour Leaflet
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Résoudre les problèmes avec Leaflet côté client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
+    return config;
+  },
   images: {
     // Optimisations pour les images
     formats: ['image/avif', 'image/webp'],

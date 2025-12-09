@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { Hotel, ArrowLeft, Filter, X, Heart, Share2, Calendar as CalendarIcon, MapPin, Star, Users, Bed, Loader2, CreditCard, Smartphone, Wallet, Download, CheckCircle } from 'lucide-react';
+import { Hotel, ArrowLeft, Filter, X, Heart, Share2, Calendar as CalendarIcon, MapPin, Star, Users, Bed, Loader2, CreditCard, Smartphone, Wallet, Download, CheckCircle, Home } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useRouter } from 'next/navigation';
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,23 @@ interface Hebergement {
   type: 'hotel' | 'auberge' | 'lieu';
   ville: string;
   province: string;
+  rating: number;
+  nombreAvis: number;
+}
+
+interface Appartement {
+  id: string;
+  nom: string;
+  description: string;
+  images: string[];
+  prixParMois: number;
+  superficie: number;
+  nombreChambres: number;
+  nombreSallesDeBain: number;
+  ville: string;
+  province: string;
+  adresse: string;
+  meuble: boolean;
   rating: number;
   nombreAvis: number;
 }
@@ -115,7 +132,88 @@ const hebergements: Hebergement[] = [
   },
 ];
 
-const provinces = ['Toutes', 'Kinshasa', 'Nord-Kivu', 'Sud-Kivu', 'Kongo-Central', 'Katanga'];
+const appartements: Appartement[] = [
+  {
+    id: 'apt1',
+    nom: 'Appartement Moderne Gombe',
+    description: 'Appartement moderne et spacieux au cœur de Gombe, idéal pour les professionnels. Proche des commerces et transports.',
+    images: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+    ],
+    prixParMois: 800,
+    superficie: 120,
+    nombreChambres: 3,
+    nombreSallesDeBain: 2,
+    ville: 'Kinshasa',
+    province: 'Kinshasa',
+    adresse: 'Avenue Kasa-Vubu, Gombe',
+    meuble: true,
+    rating: 4.6,
+    nombreAvis: 89
+  },
+  {
+    id: 'apt2',
+    nom: 'Studio Élégant Lingwala',
+    description: 'Studio meublé et équipé, parfait pour une personne. Quartier calme et sécurisé.',
+    images: [
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+    ],
+    prixParMois: 350,
+    superficie: 45,
+    nombreChambres: 1,
+    nombreSallesDeBain: 1,
+    ville: 'Kinshasa',
+    province: 'Kinshasa',
+    adresse: 'Quartier Lingwala',
+    meuble: true,
+    rating: 4.4,
+    nombreAvis: 45
+  },
+  {
+    id: 'apt3',
+    nom: 'Appartement Familial Lubumbashi',
+    description: 'Grand appartement familial avec terrasse. Idéal pour une famille. Proche des écoles et hôpitaux.',
+    images: [
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+    ],
+    prixParMois: 1200,
+    superficie: 180,
+    nombreChambres: 4,
+    nombreSallesDeBain: 3,
+    ville: 'Lubumbashi',
+    province: 'Haut-Katanga',
+    adresse: 'Avenue Lumumba',
+    meuble: false,
+    rating: 4.8,
+    nombreAvis: 123
+  },
+  {
+    id: 'apt4',
+    nom: 'Duplex Moderne Goma',
+    description: 'Duplex moderne avec vue panoramique. Meublé et équipé. Quartier résidentiel de standing.',
+    images: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+    ],
+    prixParMois: 1500,
+    superficie: 200,
+    nombreChambres: 5,
+    nombreSallesDeBain: 4,
+    ville: 'Goma',
+    province: 'Nord-Kivu',
+    adresse: 'Avenue de la Paix',
+    meuble: true,
+    rating: 4.9,
+    nombreAvis: 67
+  },
+];
+
+const provinces = ['Toutes', 'Kinshasa', 'Nord-Kivu', 'Sud-Kivu', 'Kongo-Central', 'Katanga', 'Haut-Katanga'];
 const villes = ['Toutes', 'Kinshasa', 'Goma', 'Bukavu', 'Lubumbashi', 'Matadi'];
 const types = ['Tous', 'Hôtel', 'Auberge', 'Lieu'];
 
@@ -1308,14 +1406,985 @@ function HebergementCard({ hebergement }: { hebergement: Hebergement }) {
   );
 }
 
+// Composant pour les cartes d'appartements
+function AppartementCard({ appartement }: { appartement: Appartement }) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [nombrePersonnes, setNombrePersonnes] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<'sur-place' | 'direct'>('sur-place');
+  const [paymentType, setPaymentType] = useState<'mobile-money' | 'carte' | 'paypal'>('mobile-money');
+  const [locataireName, setLocataireName] = useState('');
+  const [locatairePhone, setLocatairePhone] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCVV, setCardCVV] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
+  const [cinetpayTransactionId, setCinetpayTransactionId] = useState<string | null>(null);
+  const [showCinetpayRedirect, setShowCinetpayRedirect] = useState(false);
+  const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
+  const [showPaypalRedirect, setShowPaypalRedirect] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (appartement.images.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev >= appartement.images.length - 1 ? 0 : prev + 1));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [appartement.images.length, isPaused]);
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('locataire_name');
+    const savedPhone = localStorage.getItem('locataire_phone');
+    if (savedName) setLocataireName(savedName);
+    if (savedPhone) setLocatairePhone(savedPhone);
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsPaused(true);
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) {
+      setIsPaused(false);
+      return;
+    }
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+    if (distance > minSwipeDistance && currentImageIndex < appartement.images.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    } else if (distance < -minSwipeDistance && currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
+    }
+    setTimeout(() => setIsPaused(false), 2000);
+  };
+
+  const calculateTotal = () => {
+    if (!dateRange?.from || !dateRange?.to) return 0;
+    const months = Math.ceil(differenceInDays(dateRange.to, dateRange.from) / 30);
+    return months * appartement.prixParMois;
+  };
+
+  const generateLocationContract = async (): Promise<{ contractNumber: string; contractId: string }> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const primaryColor = [255, 136, 0];
+        const textColor = [51, 51, 51];
+        
+        const contractNumber = `CONTRAT-${Date.now().toString().slice(-8)}`;
+        const contractId = Date.now().toString();
+        const contractUrl = `${window.location.origin}/contrat/${contractId}`;
+        
+        doc.setFillColor(...primaryColor);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Ya Biso RDC', 20, 25);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Contrat de Location', 20, 32);
+        
+        doc.setTextColor(...textColor);
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONTRAT DE LOCATION', pageWidth / 2, 60, { align: 'center' });
+        
+        let yPos = 80;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Détails de la location', 20, yPos);
+        yPos += 10;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`Locataire: ${locataireName || 'Non spécifié'}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Téléphone: ${locatairePhone || 'Non spécifié'}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Appartement: ${appartement.nom}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Adresse: ${appartement.adresse}, ${appartement.ville}`, 20, yPos);
+        yPos += 7;
+        if (dateRange?.from && dateRange?.to) {
+          doc.text(`Période: ${format(dateRange.from, "dd/MM/yyyy", { locale: fr })} - ${format(dateRange.to, "dd/MM/yyyy", { locale: fr })}`, 20, yPos);
+          yPos += 7;
+          const months = Math.ceil(differenceInDays(dateRange.to, dateRange.from) / 30);
+          doc.text(`Durée: ${months} mois`, 20, yPos);
+          yPos += 7;
+        }
+        doc.text(`Personnes: ${nombrePersonnes}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Superficie: ${appartement.superficie} m²`, 20, yPos);
+        yPos += 7;
+        doc.text(`Chambres: ${appartement.nombreChambres}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Salles de bain: ${appartement.nombreSallesDeBain}`, 20, yPos);
+        yPos += 7;
+        doc.text(`Meublé: ${appartement.meuble ? 'Oui' : 'Non'}`, 20, yPos);
+        
+        yPos += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Détails de paiement', 20, yPos);
+        yPos += 10;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        const paymentMethodText = paymentMethod === 'sur-place' 
+          ? 'Paiement sur place' 
+          : paymentType === 'mobile-money' 
+            ? 'Mobile Money' 
+            : paymentType === 'paypal'
+              ? 'PayPal'
+              : 'Carte bancaire';
+        doc.text(`Méthode: ${paymentMethodText}`, 20, yPos);
+        
+        yPos += 15;
+        doc.setFillColor(240, 240, 240);
+        doc.rect(20, yPos - 5, pageWidth - 40, 5, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.text('Description', 20, yPos);
+        doc.text('Montant', pageWidth - 60, yPos, { align: 'right' });
+        yPos += 8;
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Loyer mensuel`, 20, yPos);
+        doc.text(`$${appartement.prixParMois}`, pageWidth - 60, yPos, { align: 'right' });
+        yPos += 7;
+        if (dateRange?.from && dateRange?.to) {
+          const months = Math.ceil(differenceInDays(dateRange.to, dateRange.from) / 30);
+          doc.text(`x ${months} mois`, 30, yPos);
+        }
+        yPos += 10;
+        doc.setDrawColor(...primaryColor);
+        doc.setLineWidth(0.5);
+        doc.line(20, yPos, pageWidth - 20, yPos);
+        yPos += 8;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(...primaryColor);
+        doc.text('TOTAL', 20, yPos);
+        doc.text(`$${calculateTotal()}`, pageWidth - 60, yPos, { align: 'right' });
+        
+        try {
+          const qrCodeDataUrl = await QRCode.toDataURL(contractUrl, { width: 50, margin: 1 });
+          const qrSize = 40;
+          const qrX = pageWidth - 60;
+          const qrY = pageHeight - 60;
+          doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+        } catch (error) {
+          console.error('Erreur QR code:', error);
+        }
+        
+        yPos = pageHeight - 40;
+        doc.setTextColor(...textColor);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`N° de contrat: ${contractNumber}`, 20, yPos);
+        doc.text(`Date: ${format(new Date(), "dd/MM/yyyy à HH:mm", { locale: fr })}`, 20, yPos + 7);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Merci pour votre confiance !', pageWidth / 2, pageHeight - 15, { align: 'center' });
+        doc.text('Ya Biso RDC - Votre guide de voyage au Congo', pageWidth / 2, pageHeight - 10, { align: 'center' });
+        
+        const contractData = {
+          id: contractId,
+          contractNumber,
+          appartement: {
+            nom: appartement.nom,
+            adresse: appartement.adresse,
+            ville: appartement.ville,
+          },
+          dates: dateRange?.from && dateRange?.to ? {
+            from: dateRange.from.toISOString(),
+            to: dateRange.to.toISOString(),
+          } : null,
+          months: dateRange?.from && dateRange?.to ? Math.ceil(differenceInDays(dateRange.to, dateRange.from) / 30) : 0,
+          nombrePersonnes,
+          prixParMois: appartement.prixParMois,
+          totalPrice: calculateTotal(),
+          locataireName: locataireName || 'Non spécifié',
+          locatairePhone: locatairePhone || 'Non spécifié',
+          paymentMethod: paymentMethod === 'sur-place' 
+            ? 'Paiement sur place' 
+            : paymentType === 'mobile-money' 
+              ? 'Mobile Money' 
+              : paymentType === 'paypal'
+                ? 'PayPal'
+                : 'Carte bancaire',
+          date: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(`contract_${contractId}`, JSON.stringify(contractData));
+        
+        const fileName = `Contrat_${appartement.nom.replace(/\s+/g, '_')}_${contractNumber}.pdf`;
+        const pdfBlob = doc.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        resolve({ contractNumber, contractId });
+      } catch (error) {
+        console.error('Erreur génération contrat:', error);
+        reject(error);
+      }
+    });
+  };
+
+  const handleLocation = async () => {
+    if (!dateRange?.from || !dateRange?.to) {
+      toast({
+        title: "Dates requises",
+        description: "Veuillez sélectionner vos dates d'entrée et de sortie",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentMethod === 'sur-place') {
+      setIsSubmitting(true);
+      try {
+        const { contractNumber, contractId } = await generateLocationContract();
+        setLastInvoiceId(contractId);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsSubmitting(false);
+        setShowLocation(false);
+        setShowConfirmation(true);
+        toast({
+          title: "✅ Contrat téléchargé",
+          description: `Le contrat ${contractNumber} a été téléchargé.`,
+          duration: 5000,
+        });
+      } catch (error) {
+        console.error('Erreur:', error);
+        setIsSubmitting(false);
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de la génération du contrat",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    setShowPayment(true);
+  };
+
+  const handlePayment = async () => {
+    if (paymentType === 'mobile-money' && !mobileMoneyNumber) {
+      toast({
+        title: "Numéro requis",
+        description: "Veuillez entrer votre numéro Mobile Money",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentType === 'carte') {
+      if (!cardNumber || !cardExpiry || !cardCVV || !cardName) {
+        toast({
+          title: "Informations requises",
+          description: "Veuillez remplir tous les champs de la carte",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (paymentType === 'paypal') {
+      setIsProcessingPayment(true);
+      setShowPaypalRedirect(true);
+      try {
+        const paymentReference = `LOC${Date.now()}${appartement.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+        const paypalResponse = await createPayPalPayment({
+          amount: calculateTotal(),
+          currency: 'USD',
+          description: `Location - ${appartement.nom}`,
+          reference: paymentReference,
+          customerName: locataireName || 'Client',
+          customerEmail: undefined,
+          returnUrl: `${window.location.origin}/api/paypal/return`,
+          cancelUrl: `${window.location.origin}/api/paypal/cancel`,
+        });
+
+        if (!paypalResponse.success) {
+          throw new Error(paypalResponse.message || 'Erreur PayPal');
+        }
+
+        setPaypalOrderId(paypalResponse.orderId || null);
+        if (paypalResponse.orderId) {
+          localStorage.setItem('paypal_order_id', paypalResponse.orderId);
+          localStorage.setItem('paypal_payment_reference', paymentReference);
+        }
+        
+        if (paypalResponse.paymentUrl && paypalResponse.paymentUrl !== '#') {
+          openPayPalPaymentPage(paypalResponse.paymentUrl);
+          return;
+        }
+      } catch (error: any) {
+        console.error('Erreur PayPal:', error);
+        setIsProcessingPayment(false);
+        setShowPaypalRedirect(false);
+        toast({
+          title: "Erreur PayPal",
+          description: error.message || "Erreur lors du paiement PayPal",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    try {
+      const paymentReference = `LOC${Date.now()}${appartement.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+      const cinetpayResponse = await createCinetpayPayment({
+        amount: calculateTotal(),
+        currency: 'USD',
+        customerPhoneNumber: paymentType === 'mobile-money' ? mobileMoneyNumber : '+243000000000',
+        customerEmail: undefined,
+        customerName: cardName || locataireName || 'Client',
+        description: `Location - ${appartement.nom}`,
+        reference: paymentReference,
+        returnUrl: `${window.location.origin}/api/cinetpay/return`,
+        notifyUrl: `${window.location.origin}/api/cinetpay/notify`,
+      });
+
+      if (!cinetpayResponse.success) {
+        throw new Error(cinetpayResponse.message || 'Erreur Cinetpay');
+      }
+
+      setCinetpayTransactionId(cinetpayResponse.transactionId || null);
+
+      if (cinetpayResponse.paymentUrl && cinetpayResponse.paymentUrl !== '#') {
+        setIsProcessingPayment(false);
+        setShowCinetpayRedirect(true);
+        openCinetpayPaymentPage(cinetpayResponse.paymentUrl);
+        
+        const checkInterval = setInterval(async () => {
+          if (cinetpayResponse.transactionId) {
+            const status = await checkCinetpayPaymentStatus(cinetpayResponse.transactionId);
+            if (status && status.status === 'ACCEPTED') {
+              clearInterval(checkInterval);
+              handlePaymentSuccess(paymentReference);
+            } else if (status && (status.status === 'REFUSED' || status.status === 'CANCELLED')) {
+              clearInterval(checkInterval);
+              setIsProcessingPayment(false);
+              setShowCinetpayRedirect(false);
+              toast({
+                title: "Paiement échoué",
+                description: "Le paiement n'a pas pu être effectué",
+                variant: "destructive",
+              });
+            }
+          }
+        }, 3000);
+        setTimeout(() => clearInterval(checkInterval), 300000);
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      handlePaymentSuccess(paymentReference);
+    } catch (error: any) {
+      console.error('Erreur paiement:', error);
+      setIsProcessingPayment(false);
+      toast({
+        title: "Erreur de paiement",
+        description: error.message || "Erreur lors du traitement du paiement",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentReference: string) => {
+    setIsProcessingPayment(false);
+    setShowPayment(false);
+    setShowLocation(false);
+    setShowCinetpayRedirect(false);
+    setShowPaypalRedirect(false);
+    
+    try {
+      const { contractNumber, contractId } = await generateLocationContract();
+      setLastInvoiceId(contractId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setShowConfirmation(true);
+      toast({
+        title: "✅ Paiement réussi - Contrat téléchargé",
+        description: `Le contrat ${contractNumber} a été téléchargé.`,
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la génération du contrat",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const months = dateRange?.from && dateRange?.to 
+    ? Math.ceil(differenceInDays(dateRange.to, dateRange.from) / 30) 
+    : 0;
+  const totalPrice = calculateTotal();
+
+  return (
+    <Card className="bg-gray-900/50 border-gray-800 overflow-hidden mb-4">
+      <div 
+        className="relative aspect-[4/3] w-full overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div 
+          className="flex transition-transform duration-300 ease-out h-full"
+          style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
+        >
+          {appartement.images.map((image, index) => (
+            <div key={index} className="min-w-full h-full relative">
+              <Image src={image} alt={`${appartement.nom} - Image ${index + 1}`} fill className="object-cover" />
+            </div>
+          ))}
+        </div>
+
+        {appartement.images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1.5">
+            {appartement.images.map((_, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  currentImageIndex === index ? "w-6 bg-white" : "w-1.5 bg-white/50"
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-3 right-3 bg-black/30 backdrop-blur-sm hover:bg-black/50"
+          onClick={() => setIsFavorite(!isFavorite)}
+        >
+          <Heart className={cn("h-5 w-5 transition-colors", isFavorite ? "fill-red-500 text-red-500" : "text-white")} />
+        </Button>
+      </div>
+
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-white mb-1">{appartement.nom}</h3>
+            <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+              <MapPin className="h-4 w-4" />
+              <span>{appartement.ville}, {appartement.province}</span>
+            </div>
+            <div className="flex items-center gap-1 mb-2">
+              <Star className="h-4 w-4 text-[#FFCC00]" fill="#FFCC00" />
+              <span className="text-sm text-white font-semibold">{appartement.rating}</span>
+              <span className="text-sm text-gray-400">({appartement.nombreAvis})</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-gray-400">
+              <span>{appartement.superficie} m²</span>
+              <span>•</span>
+              <span>{appartement.nombreChambres} ch.</span>
+              <span>•</span>
+              <span>{appartement.nombreSallesDeBain} sdb</span>
+              {appartement.meuble && <span className="text-[#FF8800]">• Meublé</span>}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-[#FF8800]">
+              ${appartement.prixParMois}
+            </div>
+            <div className="text-xs text-gray-400">par mois</div>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-300 mb-4 line-clamp-2">{appartement.description}</p>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 border-gray-600 bg-gray-800/50 text-white hover:bg-gray-700"
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({
+                  title: appartement.nom,
+                  text: appartement.description,
+                  url: window.location.href,
+                });
+              } else {
+                navigator.clipboard.writeText(window.location.href);
+                toast({ title: "Lien copié", description: "Le lien a été copié" });
+              }
+            }}
+          >
+            <Share2 className="h-4 w-4 mr-2" />
+            Partager
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1 bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+            onClick={() => setShowLocation(true)}
+          >
+            <Home className="h-4 w-4 mr-2" />
+            Louer
+          </Button>
+        </div>
+      </CardContent>
+
+      {/* Modal de location */}
+      <Dialog open={showLocation} onOpenChange={setShowLocation}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">{appartement.nom}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {appartement.adresse}, {appartement.ville}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            <div>
+              <Label className="text-white mb-2 block">Nom complet *</Label>
+              <Input
+                type="text"
+                placeholder="Votre nom complet"
+                value={locataireName}
+                onChange={(e) => {
+                  setLocataireName(e.target.value);
+                  localStorage.setItem('locataire_name', e.target.value);
+                }}
+                className="bg-gray-800 border-gray-700 text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <Label className="text-white mb-2 block">Téléphone *</Label>
+              <Input
+                type="tel"
+                placeholder="+243 XXX XXX XXX"
+                value={locatairePhone}
+                onChange={(e) => {
+                  setLocatairePhone(e.target.value);
+                  localStorage.setItem('locataire_phone', e.target.value);
+                }}
+                className="bg-gray-800 border-gray-700 text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <Label className="text-white mb-2 block">Période de location</Label>
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={1}
+                className="rounded-md border border-gray-700 bg-gray-800"
+                classNames={{
+                  months: "flex flex-col",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center text-white",
+                  caption_label: "text-sm font-medium text-white",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-white border-gray-600",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-gray-400 rounded-md w-9 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 text-white hover:bg-gray-700",
+                  day_range_end: "day-range-end",
+                  day_selected: "bg-[#FF8800] text-white hover:bg-[#FF8800]/90 focus:bg-[#FF8800] focus:text-white",
+                  day_today: "bg-gray-700 text-white",
+                  day_outside: "day-outside text-gray-500",
+                  day_disabled: "text-gray-600 opacity-50",
+                  day_range_middle: "aria-selected:bg-[#FF8800]/50 aria-selected:text-white",
+                }}
+              />
+              {dateRange?.from && dateRange?.to && (
+                <div className="mt-2 text-sm text-gray-300">
+                  <p>
+                    {format(dateRange.from, "PPP", { locale: fr })} - {format(dateRange.to, "PPP", { locale: fr })}
+                  </p>
+                  <p className="text-[#FF8800] font-semibold">{months} mois</p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-white mb-2 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Nombre de personnes
+              </Label>
+              <Select value={nombrePersonnes.toString()} onValueChange={(value) => setNombrePersonnes(Number(value))}>
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <SelectItem key={num} value={num.toString()} className="text-white">
+                      {num} personne{num > 1 ? 's' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateRange?.from && dateRange?.to && (
+              <div className="bg-gray-800/50 rounded-lg p-4 space-y-2 border border-gray-700">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-300">Loyer mensuel</span>
+                  <span className="text-white">${appartement.prixParMois}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-300">Durée</span>
+                  <span className="text-white">{months} mois</span>
+                </div>
+                <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between">
+                  <span className="text-lg font-bold text-white">Total</span>
+                  <span className="text-2xl font-bold text-[#FF8800]">${totalPrice}</span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-white mb-3 block text-base font-semibold">Méthode de paiement</Label>
+              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'sur-place' | 'direct')}>
+                <div className="space-y-3">
+                  <div 
+                    className={cn(
+                      "flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                      paymentMethod === 'sur-place' 
+                        ? "border-[#FF8800] bg-[#FF8800]/10" 
+                        : "border-gray-700 bg-gray-800/50 hover:border-gray-600"
+                    )}
+                    onClick={() => setPaymentMethod('sur-place')}
+                  >
+                    <RadioGroupItem value="sur-place" id="sur-place-apt" className="text-[#FF8800]" />
+                    <Label htmlFor="sur-place-apt" className="flex-1 cursor-pointer flex items-center gap-3">
+                      <Wallet className="h-5 w-5 text-[#FF8800]" />
+                      <div>
+                        <div className="text-white font-medium">Payer sur place</div>
+                        <div className="text-sm text-gray-400">Vous paierez à l'entrée</div>
+                      </div>
+                    </Label>
+                  </div>
+                  
+                  <div 
+                    className={cn(
+                      "flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                      paymentMethod === 'direct' 
+                        ? "border-[#FF8800] bg-[#FF8800]/10" 
+                        : "border-gray-700 bg-gray-800/50 hover:border-gray-600"
+                    )}
+                    onClick={() => setPaymentMethod('direct')}
+                  >
+                    <RadioGroupItem value="direct" id="direct-apt" className="text-[#FF8800]" />
+                    <Label htmlFor="direct-apt" className="flex-1 cursor-pointer flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-[#FF8800]" />
+                      <div>
+                        <div className="text-white font-medium">Payer maintenant</div>
+                        <div className="text-sm text-gray-400">Paiement sécurisé en ligne</div>
+                      </div>
+                    </Label>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Button
+              className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg font-semibold"
+              onClick={handleLocation}
+              disabled={!dateRange?.from || !dateRange?.to || !locataireName || !locatairePhone || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Traitement...
+                </>
+              ) : (
+                <>
+                  {paymentMethod === 'sur-place' ? 'Confirmer la location' : 'Procéder au paiement'}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de paiement (identique à celui des hôtels mais adapté) */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {paymentType === 'paypal' ? 'Paiement via PayPal' : 'Paiement via Cinetpay'}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Montant à payer: <span className="text-[#FF8800] font-bold text-lg">${totalPrice}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            <div>
+              <Label className="text-white mb-3 block text-base font-semibold">Mode de paiement</Label>
+              <Tabs value={paymentType} onValueChange={(value) => setPaymentType(value as 'mobile-money' | 'carte' | 'paypal')}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-800 border-gray-700">
+                  <TabsTrigger value="mobile-money" className="data-[state=active]:bg-[#FF8800] data-[state=active]:text-white text-xs">
+                    <Smartphone className="h-4 w-4 mr-1" />
+                    Mobile Money
+                  </TabsTrigger>
+                  <TabsTrigger value="carte" className="data-[state=active]:bg-[#FF8800] data-[state=active]:text-white text-xs">
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    Carte
+                  </TabsTrigger>
+                  <TabsTrigger value="paypal" className="data-[state=active]:bg-[#FF8800] data-[state=active]:text-white text-xs">
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    PayPal
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="mobile-money" className="space-y-4 mt-4">
+                  <div>
+                    <Label className="text-white mb-2 block">Numéro Mobile Money</Label>
+                    <Input
+                      type="tel"
+                      placeholder="+243 XXX XXX XXX"
+                      value={mobileMoneyNumber}
+                      onChange={(e) => setMobileMoneyNumber(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="carte" className="space-y-4 mt-4">
+                  <div>
+                    <Label className="text-white mb-2 block">Nom sur la carte</Label>
+                    <Input
+                      type="text"
+                      placeholder="Jean Dupont"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-white mb-2 block">Numéro de carte</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="1234 5678 9012 3456"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim())}
+                      maxLength={19}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-white mb-2 block">Date d'expiration</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, '');
+                          if (value.length >= 2) {
+                            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                          }
+                          setCardExpiry(value);
+                        }}
+                        maxLength={5}
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white mb-2 block">CVV</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="123"
+                        value={cardCVV}
+                        onChange={(e) => setCardCVV(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                        maxLength={3}
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="paypal" className="space-y-4 mt-4">
+                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 text-center">
+                    <CreditCard className="h-12 w-12 text-blue-400 mx-auto mb-3" />
+                    <p className="text-white font-semibold mb-2">Paiement via PayPal</p>
+                    <p className="text-xs text-gray-300 mb-4">
+                      Vous serez redirigé vers PayPal pour compléter votre paiement.
+                    </p>
+                    <p className="text-sm text-[#FF8800] font-semibold">Montant: ${totalPrice}</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <Button
+              className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg font-semibold"
+              onClick={handlePayment}
+              disabled={isProcessingPayment || showCinetpayRedirect || showPaypalRedirect}
+            >
+              {isProcessingPayment ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Initialisation du paiement...
+                </>
+              ) : showCinetpayRedirect ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Redirection vers Cinetpay...
+                </>
+              ) : showPaypalRedirect ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Redirection vers PayPal...
+                </>
+              ) : (
+                <>
+                  {paymentType === 'paypal' 
+                    ? `Payer ${totalPrice} via PayPal`
+                    : `Payer ${totalPrice} via Cinetpay`}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation de location */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-[#FF8800] flex items-center gap-2">
+              <CheckCircle className="h-6 w-6 text-green-400" />
+              Location confirmée !
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Votre location a été effectuée avec succès
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+              <h3 className="font-semibold text-white mb-2">{appartement.nom}</h3>
+              <p className="text-sm text-gray-300 mb-2">{appartement.adresse}, {appartement.ville}</p>
+              {dateRange?.from && dateRange?.to && (
+                <>
+                  <p className="text-sm text-gray-300">
+                    {format(dateRange.from, "PPP", { locale: fr })} - {format(dateRange.to, "PPP", { locale: fr })}
+                  </p>
+                  <p className="text-sm text-gray-300">{months} mois • {nombrePersonnes} personne{nombrePersonnes > 1 ? 's' : ''}</p>
+                  <p className="text-lg font-bold text-[#FF8800] mt-2">Total: ${totalPrice}</p>
+                </>
+              )}
+            </div>
+
+            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 flex items-start gap-3">
+              <Download className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-400 mb-1">Contrat téléchargé</p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Votre contrat PDF a été téléchargé automatiquement.
+                </p>
+                {lastInvoiceId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-green-500/50 text-green-400 hover:bg-green-500/20"
+                    onClick={async () => {
+                      try {
+                        await generateLocationContract();
+                        toast({
+                          title: "Téléchargement",
+                          description: "Le contrat est en cours de téléchargement",
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Erreur",
+                          description: "Impossible de télécharger le contrat",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Télécharger à nouveau
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <Button
+              className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+              onClick={() => {
+                setShowConfirmation(false);
+                setDateRange(undefined);
+                setNombrePersonnes(1);
+                setPaymentMethod('sur-place');
+                setLastInvoiceId(null);
+              }}
+            >
+              Parfait
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 export default function HebergementPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'hotels' | 'appartements'>('hotels');
   const [filters, setFilters] = useState({
     type: 'Tous',
     ville: 'Toutes',
     province: 'Toutes',
     prixMin: '',
     prixMax: '',
+  });
+  const [appartementFilters, setAppartementFilters] = useState({
+    ville: 'Toutes',
+    province: 'Toutes',
+    prixMin: '',
+    prixMax: '',
+    meuble: false,
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -1335,20 +2404,37 @@ export default function HebergementPage() {
     return true;
   });
 
-  const hasActiveFilters = filters.type !== 'Tous' || 
-    filters.ville !== 'Toutes' || 
-    filters.province !== 'Toutes' || 
-    filters.prixMin !== '' || 
-    filters.prixMax !== '';
+  const filteredAppartements = appartements.filter((appartement) => {
+    if (appartementFilters.ville !== 'Toutes' && appartement.ville !== appartementFilters.ville) return false;
+    if (appartementFilters.province !== 'Toutes' && appartement.province !== appartementFilters.province) return false;
+    if (appartementFilters.prixMin && appartement.prixParMois < Number(appartementFilters.prixMin)) return false;
+    if (appartementFilters.prixMax && appartement.prixParMois > Number(appartementFilters.prixMax)) return false;
+    if (appartementFilters.meuble && !appartement.meuble) return false;
+    return true;
+  });
+
+  const hasActiveFilters = activeTab === 'hotels' 
+    ? (filters.type !== 'Tous' || filters.ville !== 'Toutes' || filters.province !== 'Toutes' || filters.prixMin !== '' || filters.prixMax !== '')
+    : (appartementFilters.ville !== 'Toutes' || appartementFilters.province !== 'Toutes' || appartementFilters.prixMin !== '' || appartementFilters.prixMax !== '' || appartementFilters.meuble);
 
   const clearFilters = () => {
-    setFilters({
-      type: 'Tous',
-      ville: 'Toutes',
-      province: 'Toutes',
-      prixMin: '',
-      prixMax: '',
-    });
+    if (activeTab === 'hotels') {
+      setFilters({
+        type: 'Tous',
+        ville: 'Toutes',
+        province: 'Toutes',
+        prixMin: '',
+        prixMax: '',
+      });
+    } else {
+      setAppartementFilters({
+        ville: 'Toutes',
+        province: 'Toutes',
+        prixMin: '',
+        prixMax: '',
+        meuble: false,
+      });
+    }
   };
 
   return (
@@ -1404,76 +2490,143 @@ export default function HebergementPage() {
                   </SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 mb-2 block">Type</label>
-                    <Select value={filters.type} onValueChange={(value) => setFilters({...filters, type: value})}>
-                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        {types.map((type) => (
-                          <SelectItem key={type} value={type} className="text-white">
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 mb-2 block">Province</label>
-                    <Select value={filters.province} onValueChange={(value) => setFilters({...filters, province: value})}>
-                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        {provinces.map((province) => (
-                          <SelectItem key={province} value={province} className="text-white">
-                            {province}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-300 mb-2 block">Ville</label>
-                    <Select value={filters.ville} onValueChange={(value) => setFilters({...filters, ville: value})}>
-                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        {villes.map((ville) => (
-                          <SelectItem key={ville} value={ville} className="text-white">
-                            {ville}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-300 mb-2 block">Prix min ($)</label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={filters.prixMin}
-                        onChange={(e) => setFilters({...filters, prixMin: e.target.value})}
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-300 mb-2 block">Prix max ($)</label>
-                      <Input
-                        type="number"
-                        placeholder="500"
-                        value={filters.prixMax}
-                        onChange={(e) => setFilters({...filters, prixMax: e.target.value})}
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                  </div>
+                  {activeTab === 'hotels' ? (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-2 block">Type</label>
+                        <Select value={filters.type} onValueChange={(value) => setFilters({...filters, type: value})}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            {types.map((type) => (
+                              <SelectItem key={type} value={type} className="text-white">
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-2 block">Province</label>
+                        <Select value={filters.province} onValueChange={(value) => setFilters({...filters, province: value})}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            {provinces.map((province) => (
+                              <SelectItem key={province} value={province} className="text-white">
+                                {province}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-2 block">Ville</label>
+                        <Select value={filters.ville} onValueChange={(value) => setFilters({...filters, ville: value})}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            {villes.map((ville) => (
+                              <SelectItem key={ville} value={ville} className="text-white">
+                                {ville}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-300 mb-2 block">Prix min ($/jour)</label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={filters.prixMin}
+                            onChange={(e) => setFilters({...filters, prixMin: e.target.value})}
+                            className="bg-gray-800 border-gray-700 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-300 mb-2 block">Prix max ($/jour)</label>
+                          <Input
+                            type="number"
+                            placeholder="500"
+                            value={filters.prixMax}
+                            onChange={(e) => setFilters({...filters, prixMax: e.target.value})}
+                            className="bg-gray-800 border-gray-700 text-white"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-2 block">Province</label>
+                        <Select value={appartementFilters.province} onValueChange={(value) => setAppartementFilters({...appartementFilters, province: value})}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            {provinces.map((province) => (
+                              <SelectItem key={province} value={province} className="text-white">
+                                {province}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-300 mb-2 block">Ville</label>
+                        <Select value={appartementFilters.ville} onValueChange={(value) => setAppartementFilters({...appartementFilters, ville: value})}>
+                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            {villes.map((ville) => (
+                              <SelectItem key={ville} value={ville} className="text-white">
+                                {ville}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="meuble"
+                          checked={appartementFilters.meuble}
+                          onCheckedChange={(checked) => setAppartementFilters({...appartementFilters, meuble: checked as boolean})}
+                          className="border-gray-700 data-[state=checked]:bg-[#FF8800] data-[state=checked]:border-[#FF8800]"
+                        />
+                        <label htmlFor="meuble" className="text-sm font-medium text-gray-300">
+                          Meublé uniquement
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-300 mb-2 block">Prix min ($/mois)</label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={appartementFilters.prixMin}
+                            onChange={(e) => setAppartementFilters({...appartementFilters, prixMin: e.target.value})}
+                            className="bg-gray-800 border-gray-700 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-300 mb-2 block">Prix max ($/mois)</label>
+                          <Input
+                            type="number"
+                            placeholder="2000"
+                            value={appartementFilters.prixMax}
+                            onChange={(e) => setAppartementFilters({...appartementFilters, prixMax: e.target.value})}
+                            className="bg-gray-800 border-gray-700 text-white"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <Button
                     className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white mt-6"
@@ -1485,24 +2638,57 @@ export default function HebergementPage() {
               </SheetContent>
             </Sheet>
           </div>
+          
+          {/* Tabs pour basculer entre Hôtels et Appartements */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'hotels' | 'appartements')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-gray-800 border-gray-700">
+              <TabsTrigger value="hotels" className="data-[state=active]:bg-[#FF8800] data-[state=active]:text-white">
+                <Hotel className="h-4 w-4 mr-2" />
+                Hôtels
+              </TabsTrigger>
+              <TabsTrigger value="appartements" className="data-[state=active]:bg-[#FF8800] data-[state=active]:text-white">
+                <Home className="h-4 w-4 mr-2" />
+                Appartements
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
       {/* Contenu */}
-      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-24 pb-32">
+      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-32 pb-32">
         <div className="container mx-auto px-4 py-6 max-w-2xl">
-          {filteredHebergements.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-white text-center">
-                <p className="text-lg mb-2">Aucun hébergement trouvé</p>
-                <p className="text-sm text-gray-400">Essayez de modifier vos filtres</p>
-              </div>
-            </div>
-          ) : (
-            filteredHebergements.map((hebergement) => (
-              <HebergementCard key={hebergement.id} hebergement={hebergement} />
-            ))
-          )}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'hotels' | 'appartements')}>
+            <TabsContent value="hotels" className="mt-0">
+              {filteredHebergements.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-white text-center">
+                    <p className="text-lg mb-2">Aucun hôtel trouvé</p>
+                    <p className="text-sm text-gray-400">Essayez de modifier vos filtres</p>
+                  </div>
+                </div>
+              ) : (
+                filteredHebergements.map((hebergement) => (
+                  <HebergementCard key={hebergement.id} hebergement={hebergement} />
+                ))
+              )}
+            </TabsContent>
+            
+            <TabsContent value="appartements" className="mt-0">
+              {filteredAppartements.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-white text-center">
+                    <p className="text-lg mb-2">Aucun appartement trouvé</p>
+                    <p className="text-sm text-gray-400">Essayez de modifier vos filtres</p>
+                  </div>
+                </div>
+              ) : (
+                filteredAppartements.map((appartement) => (
+                  <AppartementCard key={appartement.id} appartement={appartement} />
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
       

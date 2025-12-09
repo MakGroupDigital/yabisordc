@@ -114,3 +114,4 @@ posts/
 - Vérifiez que les documents ont bien la structure attendue
 - Vérifiez les logs de la console pour voir les erreurs
 
+

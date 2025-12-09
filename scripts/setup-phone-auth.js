@@ -100,3 +100,4 @@ console.log('📄 Script de vérification créé: public/check-firebase-config.j
 console.log('💡 Pour vérifier la configuration, ouvrez la console du navigateur');
 console.log('   et exécutez: checkFirebaseConfig()\n');
 
+

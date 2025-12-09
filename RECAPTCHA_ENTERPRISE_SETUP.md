@@ -133,3 +133,4 @@ Ouvrez la console (F12) et recherchez :
 - [ ] Attendu 1-2 minutes
 - [ ] Application testée avec succès
 
+

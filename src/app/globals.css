@@ -5,7 +5,7 @@
 /* Leaflet CSS - Import global pour éviter les problèmes SSR */
 @import 'leaflet/dist/leaflet.css';
 @import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
-@import 'leaflet.fullscreen/Control.FullScreen.css';
+@import 'leaflet.fullscreen/dist/Control.FullScreen.css';
 
 @keyframes heart-float {
   0% {

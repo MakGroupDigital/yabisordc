@@ -44,6 +44,13 @@ interface FeaturedItem {
 }
 
 const categories: Category[] = [
+  // Ordre demandé par l'utilisateur
+  {
+    id: 'restauration',
+    name: 'Restaurant',
+    icon: UtensilsCrossed,
+    route: '/home/explorer/restauration'
+  },
   {
     id: 'hebergement',
     name: 'Hébergement',
@@ -58,45 +65,15 @@ const categories: Category[] = [
   },
   {
     id: 'site-touristique',
-    name: 'Site Touristique',
+    name: 'Site touristique',
     icon: MapPin,
     route: '/home/explorer/site-touristique'
   },
   {
-    id: 'evenements',
-    name: 'Événements',
-    icon: Calendar,
-    route: '/home/explorer/evenements'
-  },
-  {
-    id: 'restauration',
-    name: 'Restauration',
-    icon: UtensilsCrossed,
-    route: '/home/explorer/restauration'
-  },
-  {
-    id: 'guide-touristique',
-    name: 'Guide Touristique',
-    icon: Compass,
-    route: '/home/explorer/guide-touristique'
-  },
-  {
-    id: 'livreur',
-    name: 'Livreur',
-    icon: Package,
-    route: '/home/explorer/livreur'
-  },
-  {
-    id: 'traducteur',
-    name: 'Traducteur',
-    icon: Languages,
-    route: '/home/explorer/traducteur'
-  },
-  {
-    id: 'securite',
-    name: 'Sécurité',
-    icon: Shield,
-    route: '/home/explorer/securite'
+    id: 'salle-fete-jeux',
+    name: 'Salle de fête',
+    icon: PartyPopper,
+    route: '/home/explorer/salle-fete-jeux'
   },
   {
     id: 'urgence-medicale',
@@ -105,10 +82,34 @@ const categories: Category[] = [
     route: '/home/explorer/urgence-medicale'
   },
   {
-    id: 'salle-fete-jeux',
-    name: 'Salle de Fête et Jeux',
-    icon: PartyPopper,
-    route: '/home/explorer/salle-fete-jeux'
+    id: 'evenements',
+    name: 'Événements',
+    icon: Calendar,
+    route: '/home/explorer/evenements'
+  },
+  {
+    id: 'securite',
+    name: 'Sécurité',
+    icon: Shield,
+    route: '/home/explorer/securite'
+  },
+  {
+    id: 'traducteur',
+    name: 'Traducteur',
+    icon: Languages,
+    route: '/home/explorer/traducteur'
+  },
+  {
+    id: 'livreur',
+    name: 'Livreur',
+    icon: Package,
+    route: '/home/explorer/livreur'
+  },
+  {
+    id: 'guide-touristique',
+    name: 'Guide touristique',
+    icon: Compass,
+    route: '/home/explorer/guide-touristique'
   },
 ];
 

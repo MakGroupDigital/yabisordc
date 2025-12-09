@@ -2,6 +2,8 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Note: output: 'export' désactivé car l'app utilise des API routes
+  // Pour le déploiement, utiliser Firebase App Hosting ou Vercel
   typescript: {
     ignoreBuildErrors: true,
   },

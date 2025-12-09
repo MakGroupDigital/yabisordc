@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { ArrowLeft, Phone, Navigation, MessageCircle, MapPin, Clock, Star } from 'lucide-react';
+import { ArrowLeft, Phone, Navigation, MessageCircle, MapPin, Clock, Star, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { NavigationModal, NavigationDestination } from '@/components/navigation/navigation-modal';
+import { shareItem, clearSharedItem } from '@/lib/share-utils';
 
 interface Hopital {
   id: string;
@@ -94,9 +95,45 @@ const hopitaux: Hopital[] = [
 
 export default function UrgenceMedicalePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [navigationDestination, setNavigationDestination] = useState<NavigationDestination | null>(null);
   const [showNavigation, setShowNavigation] = useState(false);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  // Gérer les deep links
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightedId(highlight);
+      clearSharedItem();
+      
+      // Scroll vers l'élément mis en surbrillance
+      setTimeout(() => {
+        const element = document.getElementById(`hopital-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      // Retirer la surbrillance après 3 secondes
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 3000);
+    }
+  }, [searchParams]);
+
+  const handleShare = async (hopital: Hopital) => {
+    const result = await shareItem('hopital', hopital.id, hopital.nom, `Urgence médicale - ${hopital.specialite}`);
+    if (result.success) {
+      toast({
+        title: result.method === 'native' ? "Partagé !" : "Lien copié !",
+        description: result.method === 'native' 
+          ? `${hopital.nom} a été partagé` 
+          : "Le lien a été copié dans le presse-papiers",
+      });
+    }
+  };
 
   const handleAppeler = (telephone: string, nom: string) => {
     window.location.href = `tel:${telephone}`;
@@ -168,7 +205,15 @@ export default function UrgenceMedicalePage() {
           {/* Liste des hôpitaux */}
           <div className="space-y-4">
             {hopitaux.map((hopital) => (
-              <Card key={hopital.id} className="bg-gray-900/50 border-gray-800 overflow-hidden">
+              <Card 
+                key={hopital.id} 
+                id={`hopital-${hopital.id}`}
+                className={`bg-gray-900/50 border-gray-800 overflow-hidden transition-all duration-500 ${
+                  highlightedId === hopital.id 
+                    ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-black scale-[1.02]' 
+                    : ''
+                }`}
+              >
                 <CardContent className="p-0">
                   {/* Image */}
                   {hopital.image && (
@@ -179,7 +224,15 @@ export default function UrgenceMedicalePage() {
                         fill
                         className="object-cover"
                       />
-                      <div className="absolute top-2 right-2">
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="bg-black/50 hover:bg-black/70 h-8 w-8"
+                          onClick={() => handleShare(hopital)}
+                        >
+                          <Share2 className="h-4 w-4 text-white" />
+                        </Button>
                         {hopital.note && (
                           <div className="bg-black/70 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
                             <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />

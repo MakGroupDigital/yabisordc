@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { ArrowLeft, Phone, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
+import { shareItem, clearSharedItem } from '@/lib/share-utils';
 
 interface SalleOffre {
   id: string;
@@ -89,10 +90,32 @@ const offres: SalleOffre[] = [
 
 export default function SalleFeteJeuxPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [currentImages, setCurrentImages] = useState<Record<string, number>>({});
   const [isScrolling, setIsScrolling] = useState<Record<string, boolean>>({});
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  // Gérer les deep links
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightedId(highlight);
+      clearSharedItem();
+      
+      setTimeout(() => {
+        const element = document.getElementById(`salle-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 3000);
+    }
+  }, [searchParams]);
 
   // Initialiser les indices d'images pour chaque offre
   useEffect(() => {
@@ -170,6 +193,18 @@ export default function SalleFeteJeuxPage() {
     });
   };
 
+  const handleShare = async (offre: SalleOffre) => {
+    const result = await shareItem('salle', offre.id, offre.nom, offre.description);
+    if (result.success) {
+      toast({
+        title: result.method === 'native' ? "Partagé !" : "Lien copié !",
+        description: result.method === 'native' 
+          ? `${offre.nom} a été partagé` 
+          : "Le lien a été copié dans le presse-papiers",
+      });
+    }
+  };
+
   const nextImage = (offreId: string, maxImages: number) => {
     setCurrentImages(prev => {
       const next = ((prev[offreId] || 0) + 1) % maxImages;
@@ -214,7 +249,15 @@ export default function SalleFeteJeuxPage() {
       <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-20 pb-32">
         <div className="space-y-0">
           {offres.map((offre) => (
-            <Card key={offre.id} className="bg-black border-b border-gray-800 rounded-none">
+            <Card 
+              key={offre.id} 
+              id={`salle-${offre.id}`}
+              className={`bg-black border-b border-gray-800 rounded-none transition-all duration-500 ${
+                highlightedId === offre.id 
+                  ? 'ring-2 ring-[#FF8800] ring-offset-2 ring-offset-black scale-[1.02]' 
+                  : ''
+              }`}
+            >
               <CardContent className="p-0">
                 {/* Header de la carte (comme Instagram) */}
                 <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-800">
@@ -227,6 +270,14 @@ export default function SalleFeteJeuxPage() {
                       {offre.type === 'salle-fete' ? 'Salle de Fête' : 'Centre de Jeux'}
                     </p>
                   </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+                    onClick={() => handleShare(offre)}
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
                 </div>
 
                 {/* Galerie d'images défilantes horizontalement */}

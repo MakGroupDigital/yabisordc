@@ -5,7 +5,8 @@ import { BottomNav } from "@/components/home/bottom-nav";
 import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle, X, Star, Share2, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { shareItem, clearSharedItem } from '@/lib/share-utils';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -135,6 +136,7 @@ const MapComponent = dynamic(() => import('./map-component'), {
 
 export default function SiteTouristiquePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSite, setSelectedSite] = useState<TouristSite | null>(null);
@@ -163,10 +165,41 @@ export default function SiteTouristiquePage() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   
+  // Deep links
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  
   const watchIdRef = useRef<number | null>(null);
   const voiceRef = useRef<NavigationVoice | null>(null);
   const lastDistanceToDestRef = useRef<number>(Infinity);
   const arrivedAtSiteRef = useRef(false);
+
+  // Gérer les deep links
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightedId(highlight);
+      clearSharedItem();
+      
+      // Trouver et sélectionner le site
+      const site = sitesTouristiques.find(s => s.id === highlight);
+      if (site) {
+        setSelectedSite(site);
+        setMapCenter([site.latitude, site.longitude]);
+        setMapZoom(15);
+      }
+      
+      setTimeout(() => {
+        const element = document.getElementById(`site-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 3000);
+    }
+  }, [searchParams]);
 
   // Filtrer les sites selon la recherche
   const filteredSites = sitesTouristiques.filter(site =>
@@ -511,17 +544,17 @@ export default function SiteTouristiquePage() {
   }, []);
 
   // Partager le site
-  const handleShare = useCallback(() => {
-    if (navigationTarget && navigator.share) {
-      navigator.share({
-        title: navigationTarget.nom,
-        text: `J'ai visité ${navigationTarget.nom} à ${navigationTarget.ville} !`,
-        url: window.location.href,
-      });
-    } else {
+  const handleShare = useCallback(async (site?: TouristSite) => {
+    const siteToShare = site || navigationTarget;
+    if (!siteToShare) return;
+    
+    const result = await shareItem('site', siteToShare.id, siteToShare.nom, `Site touristique à ${siteToShare.ville}`);
+    if (result.success) {
       toast({
-        title: "Partage",
-        description: "Lien copié dans le presse-papier !",
+        title: result.method === 'native' ? "Partagé !" : "Lien copié !",
+        description: result.method === 'native' 
+          ? `${siteToShare.nom} a été partagé` 
+          : "Le lien a été copié dans le presse-papiers",
       });
     }
   }, [navigationTarget, toast]);
@@ -724,7 +757,7 @@ export default function SiteTouristiquePage() {
               {/* Actions */}
               <div className="flex gap-2">
                 <Button
-                  onClick={handleShare}
+                  onClick={() => handleShare()}
                   variant="outline"
                   className="flex-1 border-gray-700 text-white hover:bg-gray-800"
                 >
@@ -970,8 +1003,13 @@ export default function SiteTouristiquePage() {
             {(searchQuery ? filteredSites : sitesTouristiques).map((site) => (
               <Card
                 key={site.id}
-                className={`bg-gray-900/50 border-gray-800 cursor-pointer transition-all hover:border-[#FF8800]/50 ${
+                id={`site-${site.id}`}
+                className={`bg-gray-900/50 border-gray-800 cursor-pointer transition-all duration-500 hover:border-[#FF8800]/50 ${
                   selectedSite?.id === site.id ? 'border-[#FF8800] bg-[#FF8800]/10' : ''
+                } ${
+                  highlightedId === site.id 
+                    ? 'ring-2 ring-[#FF8800] ring-offset-2 ring-offset-black scale-[1.02]' 
+                    : ''
                 }`}
                 onClick={() => setSelectedSite(site)}
               >
@@ -997,6 +1035,17 @@ export default function SiteTouristiquePage() {
                         )}
                       </div>
                     </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare(site);
+                      }}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

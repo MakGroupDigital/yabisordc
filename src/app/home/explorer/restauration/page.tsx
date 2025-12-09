@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation, Filter } from 'lucide-react';
+import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation, Filter, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NavigationModal, NavigationDestination } from '@/components/navigation/navigation-modal';
+import { shareItem, clearSharedItem } from '@/lib/share-utils';
 
 interface Restaurant {
   id: string;
@@ -161,6 +162,7 @@ const cuisines = ['Toutes', 'Congolaise', 'Mixte', 'Italienne', 'Française'];
 
 export default function RestaurationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -177,6 +179,29 @@ export default function RestaurationPage() {
   // Navigation
   const [navigationDestination, setNavigationDestination] = useState<NavigationDestination | null>(null);
   const [showNavigation, setShowNavigation] = useState(false);
+  
+  // Deep links
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  // Gérer les deep links
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setHighlightedId(highlight);
+      clearSharedItem();
+      
+      setTimeout(() => {
+        const element = document.getElementById(`restaurant-${highlight}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 3000);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const initial: Record<string, number> = {};
@@ -313,6 +338,18 @@ export default function RestaurationPage() {
       type: 'restaurant',
     });
     setShowNavigation(true);
+  };
+
+  const handleShare = async (restaurant: Restaurant) => {
+    const result = await shareItem('restaurant', restaurant.id, restaurant.nom, `${restaurant.cuisine} - ${restaurant.ville}`);
+    if (result.success) {
+      toast({
+        title: result.method === 'native' ? "Partagé !" : "Lien copié !",
+        description: result.method === 'native' 
+          ? `${restaurant.nom} a été partagé` 
+          : "Le lien a été copié dans le presse-papiers",
+      });
+    }
   };
 
   return (
@@ -468,7 +505,15 @@ export default function RestaurationPage() {
             </Card>
           ) : (
             filteredRestaurants.map((restaurant) => (
-              <Card key={restaurant.id} className="bg-black border-b border-gray-800 rounded-none">
+              <Card 
+                key={restaurant.id} 
+                id={`restaurant-${restaurant.id}`}
+                className={`bg-black border-b border-gray-800 rounded-none transition-all duration-500 ${
+                  highlightedId === restaurant.id 
+                    ? 'ring-2 ring-[#FF8800] ring-offset-2 ring-offset-black scale-[1.02]' 
+                    : ''
+                }`}
+              >
                 <CardContent className="p-0">
                   <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-800">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF8800] to-[#FF6600] flex items-center justify-center text-white font-bold">
@@ -488,9 +533,19 @@ export default function RestaurationPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                      <span className="text-white text-sm font-semibold">{restaurant.note}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
+                        onClick={() => handleShare(restaurant)}
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                        <span className="text-white text-sm font-semibold">{restaurant.note}</span>
+                      </div>
                     </div>
                   </div>
 

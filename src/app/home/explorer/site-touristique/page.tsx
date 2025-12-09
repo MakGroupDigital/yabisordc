@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,22 @@ const sitesTouristiques: TouristSite[] = [
   },
 ];
 
+const FALLBACK_STREET_VIEW = { lat: -4.324, lng: 15.305 }; // centre Kinshasa, forte couverture
+
+// Construit l'URL Street View (panorama pur)
+const buildStreetViewUrl = (lat: number, lng: number) =>
+  `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&output=svembed`;
+
+// Construit la carte statique OSM avec plusieurs marqueurs
+const buildOsmMapUrl = (markers: { lat: number; lng: number; color?: string }[], zoom = 11) => {
+  if (!markers.length) return null;
+  const first = markers[0];
+  const markersParam = markers
+    .map((m) => `${m.lat},${m.lng},${m.color ?? 'lightblue1'}`)
+    .join('|');
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${first.lat},${first.lng}&zoom=${zoom}&size=700x420&markers=${markersParam}`;
+};
+
 export default function SiteTouristiquePage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -86,9 +102,9 @@ export default function SiteTouristiquePage() {
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   // Street View embarqué (output=svembed pour forcer le panorama)
   const [streetViewUrl, setStreetViewUrl] = useState(
-    'https://maps.google.com/maps?q=&layer=c&cbll=-4.4419,15.2663&cbp=11,0,0,0,0&output=svembed'
+    buildStreetViewUrl(FALLBACK_STREET_VIEW.lat, FALLBACK_STREET_VIEW.lng)
   );
-  // Carte statique OSM pour visualiser les points (site + utilisateur)
+  // Carte statique OSM pour visualiser les points (sites + utilisateur)
   const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
 
   // Filtrer les sites selon la recherche
@@ -102,25 +118,31 @@ export default function SiteTouristiquePage() {
   useEffect(() => {
     if (selectedSite) {
       // Street View centré sur le site sélectionné (panorama direct, sans carte)
-      const url = `https://maps.google.com/maps?q=&layer=c&cbll=${selectedSite.latitude},${selectedSite.longitude}&cbp=11,0,0,0,0&output=svembed`;
-      setStreetViewUrl(url);
+      setStreetViewUrl(buildStreetViewUrl(selectedSite.latitude, selectedSite.longitude));
+    } else {
+      // Fallback sur une zone couverte (Kinshasa centre) pour éviter l'écran noir
+      setStreetViewUrl(buildStreetViewUrl(FALLBACK_STREET_VIEW.lat, FALLBACK_STREET_VIEW.lng));
     }
   }, [selectedSite]);
 
+  // Markers pour la carte OSM (tous les sites filtrés + utilisateur)
+  const mapMarkers = useMemo(() => {
+    const list = (searchQuery ? filteredSites : sitesTouristiques).map((s) => ({
+      lat: s.latitude,
+      lng: s.longitude,
+      color: 'lightblue1',
+    }));
+    if (userLocation) {
+      list.unshift({ lat: userLocation.lat, lng: userLocation.lng, color: 'red-pushpin' });
+    }
+    return list;
+  }, [filteredSites, searchQuery, userLocation]);
+
   // Mettre à jour la carte statique (OpenStreetMap) pour visualiser les points
   useEffect(() => {
-    const site = selectedSite ?? sitesTouristiques[0];
-    const siteMarker = `${site.latitude},${site.longitude},lightblue1`;
-
-    if (userLocation) {
-      const userMarker = `${userLocation.lat},${userLocation.lng},red-pushpin`;
-      const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${site.latitude},${site.longitude}&zoom=12&size=700x380&markers=${siteMarker}|${userMarker}`;
-      setStaticMapUrl(url);
-    } else {
-      const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${site.latitude},${site.longitude}&zoom=12&size=700x380&markers=${siteMarker}`;
-      setStaticMapUrl(url);
-    }
-  }, [selectedSite, userLocation]);
+    const url = buildOsmMapUrl(mapMarkers, userLocation ? 12 : 6);
+    setStaticMapUrl(url);
+  }, [mapMarkers, userLocation]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {

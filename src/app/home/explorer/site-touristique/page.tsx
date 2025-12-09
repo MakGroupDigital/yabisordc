@@ -84,8 +84,9 @@ export default function SiteTouristiquePage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  // Street View embarqué (output=svembed pour forcer le panorama et non la carte)
   const [mapUrl, setMapUrl] = useState(
-    'https://www.google.com/maps/embed/v1/streetview?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dRWTtaQf0YgGMg&location=-4.4419,15.2663&heading=210&pitch=10&fov=80'
+    'https://maps.google.com/maps?q=&layer=c&cbll=-4.4419,15.2663&cbp=11,0,0,0,0&output=svembed'
   );
 
   // Filtrer les sites selon la recherche
@@ -98,8 +99,8 @@ export default function SiteTouristiquePage() {
   // Mettre à jour la carte quand un site est sélectionné
   useEffect(() => {
     if (selectedSite) {
-      // Street View centré sur le site sélectionné
-      const url = `https://www.google.com/maps/embed/v1/streetview?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dRWTtaQf0YgGMg&location=${selectedSite.latitude},${selectedSite.longitude}&heading=210&pitch=10&fov=80`;
+      // Street View centré sur le site sélectionné (panorama direct, sans affichage de la carte)
+      const url = `https://maps.google.com/maps?q=&layer=c&cbll=${selectedSite.latitude},${selectedSite.longitude}&cbp=11,0,0,0,0&output=svembed`;
       setMapUrl(url);
     }
   }, [selectedSite]);

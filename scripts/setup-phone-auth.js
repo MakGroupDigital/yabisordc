@@ -101,3 +101,4 @@ console.log('💡 Pour vérifier la configuration, ouvrez la console du navigate
 console.log('   et exécutez: checkFirebaseConfig()\n');
 
 
+

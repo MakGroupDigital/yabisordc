@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle } from 'lucide-react';
+import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import dynamic from 'next/dynamic';
 
 interface TouristSite {
   id: string;
@@ -24,73 +25,103 @@ interface TouristSite {
   longitude: number;
   ville: string;
   province: string;
+  telephone?: string;
   image?: string;
 }
 
-// Sites touristiques de la RDC
+// Sites touristiques de la RDC avec coordonnées réelles
 const sitesTouristiques: TouristSite[] = [
   {
     id: '1',
     nom: 'Parc National des Virunga',
     description: 'Le plus ancien parc national d\'Afrique, abritant des gorilles de montagne',
-    latitude: -0.4167,
-    longitude: 29.15,
+    latitude: -1.4073,
+    longitude: 29.2250,
     ville: 'Goma',
     province: 'Nord-Kivu',
+    telephone: '+243970000001',
   },
   {
     id: '2',
     nom: 'Parc National de la Salonga',
     description: 'Plus grande réserve de forêt tropicale d\'Afrique',
-    latitude: -1.5,
-    longitude: 21.0,
+    latitude: -2.0833,
+    longitude: 21.5000,
     ville: 'Mbandaka',
     province: 'Équateur',
+    telephone: '+243970000002',
   },
   {
     id: '3',
     nom: 'Lac Kivu',
     description: 'Lac majestueux situé à la frontière avec le Rwanda',
-    latitude: -1.9,
-    longitude: 29.1,
+    latitude: -2.0500,
+    longitude: 29.0500,
     ville: 'Goma',
     province: 'Nord-Kivu',
+    telephone: '+243970000003',
   },
   {
     id: '4',
     nom: 'Chutes de Zongo',
     description: 'Magnifiques chutes d\'eau près de Kinshasa',
-    latitude: -4.7833,
-    longitude: 14.9333,
+    latitude: -4.7167,
+    longitude: 14.8833,
     ville: 'Kinshasa',
     province: 'Kinshasa',
+    telephone: '+243970000004',
   },
   {
     id: '5',
-    nom: 'Kinshasa',
-    description: 'Capitale de la RDC, ville vibrante et culturelle',
-    latitude: -4.4419,
-    longitude: 15.2663,
+    nom: 'Monument de l\'Échangeur',
+    description: 'Monument emblématique de Kinshasa',
+    latitude: -4.3176,
+    longitude: 15.3136,
     ville: 'Kinshasa',
     province: 'Kinshasa',
+    telephone: '+243970000005',
+  },
+  {
+    id: '6',
+    nom: 'Jardin Botanique de Kinshasa',
+    description: 'Espace vert au cœur de la capitale',
+    latitude: -4.3850,
+    longitude: 15.3270,
+    ville: 'Kinshasa',
+    province: 'Kinshasa',
+    telephone: '+243970000006',
+  },
+  {
+    id: '7',
+    nom: 'Académie des Beaux-Arts',
+    description: 'Centre culturel et artistique historique',
+    latitude: -4.3100,
+    longitude: 15.3000,
+    ville: 'Kinshasa',
+    province: 'Kinshasa',
+    telephone: '+243970000007',
+  },
+  {
+    id: '8',
+    nom: 'Stade des Martyrs',
+    description: 'Plus grand stade de la RDC',
+    latitude: -4.3333,
+    longitude: 15.3167,
+    ville: 'Kinshasa',
+    province: 'Kinshasa',
+    telephone: '+243970000008',
   },
 ];
 
-const FALLBACK_STREET_VIEW = { lat: -4.324, lng: 15.305 }; // centre Kinshasa, forte couverture
-
-// Construit l'URL Street View (panorama pur)
-const buildStreetViewUrl = (lat: number, lng: number) =>
-  `https://maps.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0&output=svembed`;
-
-// Construit la carte statique OSM avec plusieurs marqueurs
-const buildOsmMapUrl = (markers: { lat: number; lng: number; color?: string }[], zoom = 11) => {
-  if (!markers.length) return null;
-  const first = markers[0];
-  const markersParam = markers
-    .map((m) => `${m.lat},${m.lng},${m.color ?? 'lightblue1'}`)
-    .join('|');
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${first.lat},${first.lng}&zoom=${zoom}&size=700x420&markers=${markersParam}`;
-};
+// Composant Map chargé dynamiquement (Leaflet ne fonctionne pas en SSR)
+const MapComponent = dynamic(() => import('./map-component'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-800">
+      <Loader2 className="h-8 w-8 animate-spin text-[#FF8800]" />
+    </div>
+  ),
+});
 
 export default function SiteTouristiquePage() {
   const router = useRouter();
@@ -100,12 +131,8 @@ export default function SiteTouristiquePage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  // Street View embarqué (output=svembed pour forcer le panorama)
-  const [streetViewUrl, setStreetViewUrl] = useState(
-    buildStreetViewUrl(FALLBACK_STREET_VIEW.lat, FALLBACK_STREET_VIEW.lng)
-  );
-  // Carte statique OSM pour visualiser les points (sites + utilisateur)
-  const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-4.3250, 15.3222]); // Kinshasa par défaut
+  const [mapZoom, setMapZoom] = useState(12);
 
   // Filtrer les sites selon la recherche
   const filteredSites = sitesTouristiques.filter(site =>
@@ -114,35 +141,21 @@ export default function SiteTouristiquePage() {
     site.province.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Mettre à jour la carte quand un site est sélectionné
+  // Mettre à jour le centre de la carte quand un site est sélectionné
   useEffect(() => {
     if (selectedSite) {
-      // Street View centré sur le site sélectionné (panorama direct, sans carte)
-      setStreetViewUrl(buildStreetViewUrl(selectedSite.latitude, selectedSite.longitude));
-    } else {
-      // Fallback sur une zone couverte (Kinshasa centre) pour éviter l'écran noir
-      setStreetViewUrl(buildStreetViewUrl(FALLBACK_STREET_VIEW.lat, FALLBACK_STREET_VIEW.lng));
+      setMapCenter([selectedSite.latitude, selectedSite.longitude]);
+      setMapZoom(15);
     }
   }, [selectedSite]);
 
-  // Markers pour la carte OSM (tous les sites filtrés + utilisateur)
-  const mapMarkers = useMemo(() => {
-    const list = (searchQuery ? filteredSites : sitesTouristiques).map((s) => ({
-      lat: s.latitude,
-      lng: s.longitude,
-      color: 'lightblue1',
-    }));
-    if (userLocation) {
-      list.unshift({ lat: userLocation.lat, lng: userLocation.lng, color: 'red-pushpin' });
-    }
-    return list;
-  }, [filteredSites, searchQuery, userLocation]);
-
-  // Mettre à jour la carte statique (OpenStreetMap) pour visualiser les points
+  // Centrer sur l'utilisateur quand sa position est obtenue
   useEffect(() => {
-    const url = buildOsmMapUrl(mapMarkers, userLocation ? 12 : 6);
-    setStaticMapUrl(url);
-  }, [mapMarkers, userLocation]);
+    if (userLocation && !selectedSite) {
+      setMapCenter([userLocation.lat, userLocation.lng]);
+      setMapZoom(13);
+    }
+  }, [userLocation, selectedSite]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -190,10 +203,10 @@ export default function SiteTouristiquePage() {
         const lng = position.coords.longitude;
         setUserLocation({ lat, lng });
 
-        // Trouver les sites proches (dans un rayon de 50km)
+        // Trouver les sites proches (dans un rayon de 100km)
         const nearbySites = sitesTouristiques.filter(site => {
           const distance = calculateDistance(lat, lng, site.latitude, site.longitude);
-          return distance <= 50; // 50 km
+          return distance <= 100; // 100 km
         });
 
         if (nearbySites.length > 0) {
@@ -211,8 +224,8 @@ export default function SiteTouristiquePage() {
           });
         } else {
           toast({
-            title: "Aucun site proche",
-            description: "Aucun site touristique dans un rayon de 50km",
+            title: "Position obtenue",
+            description: "Vous êtes maintenant visible sur la carte",
           });
         }
 
@@ -229,7 +242,7 @@ export default function SiteTouristiquePage() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
+        timeout: 10000,
         maximumAge: 0,
       }
     );
@@ -246,6 +259,23 @@ export default function SiteTouristiquePage() {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  };
+
+  const handleCall = (phone: string) => {
+    window.location.href = `tel:${phone}`;
+  };
+
+  const handleWhatsApp = (phone: string, siteName: string) => {
+    const message = encodeURIComponent(`Bonjour, je souhaite avoir des informations sur ${siteName}.`);
+    window.open(`https://wa.me/${phone.replace('+', '')}?text=${message}`, '_blank');
+  };
+
+  const handleItineraire = (lat: number, lng: number, siteName: string) => {
+    if (userLocation) {
+      window.open(`https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${lat},${lng}`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+    }
   };
 
   return (
@@ -313,62 +343,95 @@ export default function SiteTouristiquePage() {
                 ) : (
                   <>
                     <Navigation className="h-4 w-4 mr-2" />
-                    Sites proches de ma localisation
+                    {userLocation ? 'Ma position activée ✓' : 'Sites proches de ma localisation'}
                   </>
                 )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Street View */}
+          {/* Carte interactive Leaflet */}
           <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
             <CardContent className="p-0">
               <div className="relative w-full h-[400px]">
-                <iframe
-                  src={streetViewUrl}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0, filter: 'brightness(0.8) contrast(1.2)' }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="rounded-lg"
+                <MapComponent
+                  sites={searchQuery ? filteredSites : sitesTouristiques}
+                  selectedSite={selectedSite}
+                  userLocation={userLocation}
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  onSiteSelect={(site: TouristSite) => setSelectedSite(site)}
                 />
                 {/* Overlay identifiant l'appli */}
-                <div className="absolute top-2 right-2 bg-[#FF8800] text-white px-3 py-1 rounded-full text-xs font-semibold">
+                <div className="absolute top-2 right-2 bg-[#FF8800] text-white px-3 py-1 rounded-full text-xs font-semibold z-[1000]">
                   Ya Biso RDC
                 </div>
+                {userLocation && (
+                  <div className="absolute bottom-2 left-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold z-[1000]">
+                    📍 Vous êtes ici
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Carte statique (OpenStreetMap) pour visualiser les points */}
-          <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
-            <CardContent className="p-0">
-              <div className="relative w-full h-[320px] bg-gray-800">
-                {staticMapUrl ? (
-                  <img
-                    src={staticMapUrl}
-                    alt="Carte des positions (OSM)"
-                    className="w-full h-full object-cover"
-                    style={{ filter: 'brightness(0.9) contrast(1.1)' }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                    Carte en cours de préparation...
+          {/* Détails du site sélectionné */}
+          {selectedSite && (
+            <Card className="bg-[#FF8800]/10 border-[#FF8800] overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-[#FF8800]/20">
+                    <MapPin className="h-5 w-5 text-[#FF8800]" />
                   </div>
-                )}
-                <div className="absolute top-2 left-2 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                  Points : site + vous
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold text-lg">{selectedSite.nom}</h3>
+                    <p className="text-gray-300 text-sm mb-1">{selectedSite.description}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>{selectedSite.ville}</span>
+                      <span>•</span>
+                      <span>{selectedSite.province}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleItineraire(selectedSite.latitude, selectedSite.longitude, selectedSite.nom)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    size="sm"
+                  >
+                    <Navigation className="h-4 w-4 mr-1" />
+                    Itinéraire
+                  </Button>
+                  {selectedSite.telephone && (
+                    <>
+                      <Button
+                        onClick={() => handleCall(selectedSite.telephone!)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        size="sm"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => handleWhatsApp(selectedSite.telephone!, selectedSite.nom)}
+                        className="bg-[#25D366] hover:bg-[#25D366]/90 text-white"
+                        size="sm"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Liste des sites */}
           <div className="space-y-3">
             <h2 className="text-white font-semibold text-lg">
               {searchQuery ? `Résultats pour "${searchQuery}"` : 'Sites touristiques'}
+              <span className="text-gray-400 text-sm ml-2">
+                ({(searchQuery ? filteredSites : sitesTouristiques).length} sites)
+              </span>
             </h2>
             {(searchQuery ? filteredSites : sitesTouristiques).map((site) => (
               <Card
@@ -390,6 +453,14 @@ export default function SiteTouristiquePage() {
                         <span>{site.ville}</span>
                         <span>•</span>
                         <span>{site.province}</span>
+                        {userLocation && (
+                          <>
+                            <span>•</span>
+                            <span className="text-[#FF8800]">
+                              {calculateDistance(userLocation.lat, userLocation.lng, site.latitude, site.longitude).toFixed(1)} km
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle, X, Maximize2 } from 'lucide-react';
+import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle, X, Star, Share2, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import dynamic from 'next/dynamic';
+import {
+  getRouteFromOSRM,
+  formatDistance,
+  formatDuration,
+  findCurrentStep,
+  calculateDistance,
+  NavigationVoice,
+  RouteData,
+  RouteStep,
+} from './navigation-utils';
 
 interface TouristSite {
   id: string;
@@ -131,14 +141,32 @@ export default function SiteTouristiquePage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-4.3250, 15.3222]); // Kinshasa par défaut
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-4.3250, 15.3222]);
   const [mapZoom, setMapZoom] = useState(12);
   
-  // États pour la navigation
+  // États pour la navigation avancée
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<TouristSite | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentInstruction, setCurrentInstruction] = useState('');
+  const [distanceToManeuver, setDistanceToManeuver] = useState(0);
+  const [totalDistance, setTotalDistance] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [hasArrived, setHasArrived] = useState(false);
+  const [showArrivalDialog, setShowArrivalDialog] = useState(false);
+  const [showDepartureDialog, setShowDepartureDialog] = useState(false);
+  const [showNavigationBlockedDialog, setShowNavigationBlockedDialog] = useState(false);
+  const [pendingNavigationSite, setPendingNavigationSite] = useState<TouristSite | null>(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  
   const watchIdRef = useRef<number | null>(null);
+  const voiceRef = useRef<NavigationVoice | null>(null);
+  const lastDistanceToDestRef = useRef<number>(Infinity);
+  const arrivedAtSiteRef = useRef(false);
 
   // Filtrer les sites selon la recherche
   const filteredSites = sitesTouristiques.filter(site =>
@@ -146,6 +174,14 @@ export default function SiteTouristiquePage() {
     site.ville.toLowerCase().includes(searchQuery.toLowerCase()) ||
     site.province.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Initialiser la voix de navigation
+  useEffect(() => {
+    voiceRef.current = new NavigationVoice();
+    return () => {
+      voiceRef.current?.stop();
+    };
+  }, []);
 
   // Mettre à jour le centre de la carte quand un site est sélectionné
   useEffect(() => {
@@ -169,8 +205,57 @@ export default function SiteTouristiquePage() {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+      voiceRef.current?.stop();
     };
   }, []);
+
+  // Mettre à jour les instructions de navigation en temps réel
+  useEffect(() => {
+    if (!isNavigating || !userLocation || !routeData || !navigationTarget) return;
+
+    // Trouver l'étape actuelle
+    const stepInfo = findCurrentStep(userLocation.lat, userLocation.lng, routeData.steps);
+    if (stepInfo) {
+      setCurrentStepIndex(stepInfo.index);
+      setCurrentInstruction(stepInfo.step.instruction);
+      setDistanceToManeuver(stepInfo.distanceToManeuver);
+
+      // Annoncer l'instruction vocalement
+      if (audioEnabled && voiceRef.current) {
+        voiceRef.current.speakWithDistance(stepInfo.step.instruction, stepInfo.distanceToManeuver);
+      }
+    }
+
+    // Calculer la distance à la destination
+    const distanceToDest = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      navigationTarget.latitude,
+      navigationTarget.longitude
+    );
+
+    // Vérifier si on est arrivé (moins de 50 mètres)
+    if (distanceToDest < 50 && !hasArrived) {
+      setHasArrived(true);
+      arrivedAtSiteRef.current = true;
+      setShowArrivalDialog(true);
+      
+      if (audioEnabled && voiceRef.current) {
+        voiceRef.current.announceArrival(navigationTarget.nom);
+      }
+    }
+
+    // Vérifier si on s'éloigne du site après y être arrivé
+    if (arrivedAtSiteRef.current && distanceToDest > 100 && lastDistanceToDestRef.current < distanceToDest) {
+      // On s'éloigne du site
+      setShowDepartureDialog(true);
+      arrivedAtSiteRef.current = false;
+    }
+
+    lastDistanceToDestRef.current = distanceToDest;
+    setTotalDistance(distanceToDest);
+
+  }, [userLocation, isNavigating, routeData, navigationTarget, audioEnabled, hasArrived]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -218,14 +303,12 @@ export default function SiteTouristiquePage() {
         const lng = position.coords.longitude;
         setUserLocation({ lat, lng });
 
-        // Trouver les sites proches (dans un rayon de 100km)
         const nearbySites = sitesTouristiques.filter(site => {
           const distance = calculateDistance(lat, lng, site.latitude, site.longitude);
-          return distance <= 100; // 100 km
+          return distance <= 100000;
         });
 
         if (nearbySites.length > 0) {
-          // Afficher le site le plus proche
           const closestSite = nearbySites.reduce((prev, curr) => {
             const prevDist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
             const currDist = calculateDistance(lat, lng, curr.latitude, curr.longitude);
@@ -263,19 +346,6 @@ export default function SiteTouristiquePage() {
     );
   };
 
-  // Calculer la distance entre deux points (formule de Haversine)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // Rayon de la Terre en km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
   const handleCall = (phone: string) => {
     window.location.href = `tel:${phone}`;
   };
@@ -285,8 +355,20 @@ export default function SiteTouristiquePage() {
     window.open(`https://wa.me/${phone.replace('+', '')}?text=${message}`, '_blank');
   };
 
+  // Tenter de démarrer la navigation
+  const attemptStartNavigation = useCallback((site: TouristSite) => {
+    // Si déjà en navigation, bloquer et demander confirmation
+    if (isNavigating) {
+      setPendingNavigationSite(site);
+      setShowNavigationBlockedDialog(true);
+      return;
+    }
+    
+    startNavigation(site);
+  }, [isNavigating]);
+
   // Démarrer la navigation vers un site
-  const startNavigation = useCallback((site: TouristSite) => {
+  const startNavigation = useCallback(async (site: TouristSite) => {
     if (!navigator.geolocation) {
       toast({
         title: "Géolocalisation non supportée",
@@ -296,15 +378,45 @@ export default function SiteTouristiquePage() {
       return;
     }
 
-    // Demander la position initiale
+    toast({
+      title: "Calcul de l'itinéraire...",
+      description: "Veuillez patienter",
+    });
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         setUserLocation({ lat, lng });
+
+        // Récupérer l'itinéraire depuis OSRM
+        const route = await getRouteFromOSRM(lat, lng, site.latitude, site.longitude);
+        
+        if (route) {
+          setRouteData(route);
+          setTotalDistance(route.distance);
+          setTotalDuration(route.duration);
+          
+          if (route.steps.length > 0) {
+            setCurrentInstruction(route.steps[0].instruction);
+          }
+        } else {
+          toast({
+            title: "Itinéraire simplifié",
+            description: "Impossible de calculer la route exacte, affichage en ligne droite",
+          });
+        }
+
         setNavigationTarget(site);
         setIsNavigating(true);
-        setIsFullscreen(true); // Passer en plein écran automatiquement
+        setIsFullscreen(true);
+        setHasArrived(false);
+        arrivedAtSiteRef.current = false;
+        lastDistanceToDestRef.current = Infinity;
+
+        if (audioEnabled && voiceRef.current) {
+          voiceRef.current.announceStart(site.nom);
+        }
 
         toast({
           title: "Navigation démarrée",
@@ -343,7 +455,7 @@ export default function SiteTouristiquePage() {
         maximumAge: 0,
       }
     );
-  }, [toast]);
+  }, [toast, audioEnabled]);
 
   // Arrêter la navigation
   const stopNavigation = useCallback(() => {
@@ -351,9 +463,17 @@ export default function SiteTouristiquePage() {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    
+    voiceRef.current?.stop();
+    
     setIsNavigating(false);
     setNavigationTarget(null);
     setIsFullscreen(false);
+    setRouteData(null);
+    setCurrentStepIndex(0);
+    setCurrentInstruction('');
+    setHasArrived(false);
+    arrivedAtSiteRef.current = false;
     
     toast({
       title: "Navigation terminée",
@@ -361,65 +481,132 @@ export default function SiteTouristiquePage() {
     });
   }, [toast]);
 
+  // Annuler navigation actuelle et démarrer nouvelle
+  const switchNavigation = useCallback(() => {
+    stopNavigation();
+    setShowNavigationBlockedDialog(false);
+    
+    if (pendingNavigationSite) {
+      setTimeout(() => {
+        startNavigation(pendingNavigationSite);
+        setPendingNavigationSite(null);
+      }, 500);
+    }
+  }, [stopNavigation, startNavigation, pendingNavigationSite]);
+
   // Toggle plein écran
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(prev => !prev);
   }, []);
 
-  // Rendu en mode plein écran
+  // Toggle audio
+  const toggleAudio = useCallback(() => {
+    setAudioEnabled(prev => {
+      const newState = !prev;
+      if (!newState) {
+        voiceRef.current?.stop();
+      }
+      return newState;
+    });
+  }, []);
+
+  // Partager le site
+  const handleShare = useCallback(() => {
+    if (navigationTarget && navigator.share) {
+      navigator.share({
+        title: navigationTarget.nom,
+        text: `J'ai visité ${navigationTarget.nom} à ${navigationTarget.ville} !`,
+        url: window.location.href,
+      });
+    } else {
+      toast({
+        title: "Partage",
+        description: "Lien copié dans le presse-papier !",
+      });
+    }
+  }, [navigationTarget, toast]);
+
+  // Soumettre l'avis
+  const submitReview = useCallback(() => {
+    toast({
+      title: "Merci pour votre avis !",
+      description: `Vous avez noté ${navigationTarget?.nom} ${rating}/5 étoiles`,
+    });
+    setShowDepartureDialog(false);
+    setRating(0);
+    setComment('');
+  }, [rating, navigationTarget, toast]);
+
+  // Rendu en mode plein écran (navigation)
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-[9999] bg-black">
         {/* Header en plein écran */}
-        <div className="absolute top-0 left-0 right-0 z-[10000] bg-black/80 backdrop-blur-md">
+        <div className="absolute top-0 left-0 right-0 z-[10000] bg-gradient-to-b from-black/90 to-transparent">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={isNavigating ? stopNavigation : toggleFullscreen}
-                className="text-white hover:bg-gray-800"
+                className="text-white hover:bg-white/20"
               >
                 {isNavigating ? <X className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
               </Button>
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-[#FF8800]/20">
-                  <MapPin className="h-5 w-5 text-[#FF8800]" />
+                  <Navigation className="h-5 w-5 text-[#FF8800]" />
                 </div>
                 <span className="text-white font-semibold">
                   {isNavigating ? 'Navigation' : 'Carte'}
                 </span>
               </div>
             </div>
-            {isNavigating && navigationTarget && (
-              <div className="text-right">
-                <div className="text-white font-bold">
-                  {userLocation ? calculateDistance(
-                    userLocation.lat,
-                    userLocation.lng,
-                    navigationTarget.latitude,
-                    navigationTarget.longitude
-                  ).toFixed(1) : '...'} km
+            <div className="flex items-center gap-2">
+              {isNavigating && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleAudio}
+                  className="text-white hover:bg-white/20"
+                >
+                  {audioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                </Button>
+              )}
+              {isNavigating && navigationTarget && (
+                <div className="text-right">
+                  <div className="text-white font-bold">
+                    {formatDistance(totalDistance)}
+                  </div>
+                  <div className="text-gray-400 text-xs">restants</div>
                 </div>
-                <div className="text-gray-400 text-xs">restants</div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
         {/* Carte plein écran */}
-        <div className="w-full h-full pt-14">
+        <div className="w-full h-full">
           <MapComponent
             sites={searchQuery ? filteredSites : sitesTouristiques}
             selectedSite={selectedSite}
             userLocation={userLocation}
             center={mapCenter}
             zoom={mapZoom}
-            onSiteSelect={(site: TouristSite) => setSelectedSite(site)}
+            onSiteSelect={(site: TouristSite) => {
+              if (isNavigating) {
+                attemptStartNavigation(site);
+              } else {
+                setSelectedSite(site);
+              }
+            }}
             isNavigating={isNavigating}
             navigationTarget={navigationTarget}
+            routeCoordinates={routeData?.coordinates}
             isFullscreen={true}
             onToggleFullscreen={toggleFullscreen}
+            currentInstruction={currentInstruction}
+            distanceToManeuver={distanceToManeuver}
           />
         </div>
 
@@ -439,7 +626,11 @@ export default function SiteTouristiquePage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-white font-bold">{navigationTarget.nom}</h3>
-                    <p className="text-gray-400 text-sm">{navigationTarget.ville}, {navigationTarget.province}</p>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-blue-400">{formatDistance(totalDistance)}</span>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-gray-400">{formatDuration(totalDuration)}</span>
+                    </div>
                   </div>
                   <Button
                     onClick={stopNavigation}
@@ -453,6 +644,158 @@ export default function SiteTouristiquePage() {
             </Card>
           </div>
         )}
+
+        {/* Dialog d'arrivée */}
+        <Dialog open={showArrivalDialog} onOpenChange={setShowArrivalDialog}>
+          <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-center">
+                🎉 Vous êtes arrivé !
+              </DialogTitle>
+              <DialogDescription className="text-gray-400 text-center">
+                Bienvenue à {navigationTarget?.nom}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 mt-4">
+              <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-center">
+                <div className="text-4xl mb-2">🏛️</div>
+                <p className="text-white font-semibold">{navigationTarget?.nom}</p>
+                <p className="text-gray-400 text-sm">{navigationTarget?.ville}, {navigationTarget?.province}</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => setShowArrivalDialog(false)}
+                  className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                >
+                  Continuer l'exploration
+                </Button>
+                <Button
+                  onClick={stopNavigation}
+                  variant="outline"
+                  className="w-full border-gray-700 text-white hover:bg-gray-800"
+                >
+                  Terminer la navigation
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de départ du site */}
+        <Dialog open={showDepartureDialog} onOpenChange={setShowDepartureDialog}>
+          <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">
+                Ce lieu vous a-t-il plu ?
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Partagez votre expérience à {navigationTarget?.nom}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 mt-4">
+              {/* Notation par étoiles */}
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    className="p-1 transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`h-8 w-8 ${
+                        star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Commentaire */}
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Laissez un commentaire (optionnel)..."
+                className="w-full h-24 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 resize-none"
+              />
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleShare}
+                  variant="outline"
+                  className="flex-1 border-gray-700 text-white hover:bg-gray-800"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Partager
+                </Button>
+                <Button
+                  onClick={submitReview}
+                  className="flex-1 bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Envoyer
+                </Button>
+              </div>
+
+              <Button
+                onClick={() => {
+                  setShowDepartureDialog(false);
+                  stopNavigation();
+                }}
+                variant="ghost"
+                className="w-full text-gray-400 hover:text-white"
+              >
+                Passer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog navigation bloquée */}
+        <Dialog open={showNavigationBlockedDialog} onOpenChange={setShowNavigationBlockedDialog}>
+          <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">
+                Navigation en cours
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Vous avez déjà une navigation vers {navigationTarget?.nom} en cours.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 mt-4">
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-white text-sm">
+                      Pour naviguer vers <strong>{pendingNavigationSite?.nom}</strong>, vous devez d'abord terminer ou annuler la navigation actuelle.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={switchNavigation}
+                  className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white"
+                >
+                  Changer de destination
+                </Button>
+                <Button
+                  onClick={() => setShowNavigationBlockedDialog(false)}
+                  variant="outline"
+                  className="w-full border-gray-700 text-white hover:bg-gray-800"
+                >
+                  Continuer vers {navigationTarget?.nom}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -577,7 +920,7 @@ export default function SiteTouristiquePage() {
                         <>
                           <span>•</span>
                           <span className="text-[#FF8800] font-semibold">
-                            {calculateDistance(userLocation.lat, userLocation.lng, selectedSite.latitude, selectedSite.longitude).toFixed(1)} km
+                            {formatDistance(calculateDistance(userLocation.lat, userLocation.lng, selectedSite.latitude, selectedSite.longitude))}
                           </span>
                         </>
                       )}
@@ -586,7 +929,7 @@ export default function SiteTouristiquePage() {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => startNavigation(selectedSite)}
+                    onClick={() => attemptStartNavigation(selectedSite)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     size="sm"
                   >
@@ -648,7 +991,7 @@ export default function SiteTouristiquePage() {
                           <>
                             <span>•</span>
                             <span className="text-[#FF8800]">
-                              {calculateDistance(userLocation.lat, userLocation.lng, site.latitude, site.longitude).toFixed(1)} km
+                              {formatDistance(calculateDistance(userLocation.lat, userLocation.lng, site.latitude, site.longitude))}
                             </span>
                           </>
                         )}

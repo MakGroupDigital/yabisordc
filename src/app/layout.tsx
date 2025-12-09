@@ -27,6 +27,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://studio-3821305079-74f59.firebaseapp.com'),
   title: 'Ya Biso RDC - Découvrez l\'âme du Congo',
   description: 'Votre porte d\'entrée vers des paysages époustouflants, une culture riche et des aventures inoubliables en République Démocratique du Congo.',
   manifest: '/manifest.json',

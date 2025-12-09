@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { ArrowLeft, Phone, MessageCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -90,7 +90,7 @@ const offres: SalleOffre[] = [
 
 export const dynamic = 'force-dynamic';
 
-export default function SalleFeteJeuxPage() {
+function SalleFeteJeuxPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -386,6 +386,18 @@ export default function SalleFeteJeuxPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SalleFeteJeuxPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="text-white">Chargement...</div>
+      </div>
+    }>
+      <SalleFeteJeuxPageContent />
+    </Suspense>
   );
 }
 

@@ -95,7 +95,7 @@ const hopitaux: Hopital[] = [
 
 export const dynamic = 'force-dynamic';
 
-export default function UrgenceMedicalePage() {
+function UrgenceMedicalePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -313,5 +313,17 @@ export default function UrgenceMedicalePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function UrgenceMedicalePage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="text-white">Chargement...</div>
+      </div>
+    }>
+      <UrgenceMedicalePageContent />
+    </Suspense>
   );
 }

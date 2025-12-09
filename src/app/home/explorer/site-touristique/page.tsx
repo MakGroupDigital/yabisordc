@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle, X, Star, Share2, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -136,7 +136,7 @@ const MapComponent = dynamic(() => import('./map-component'), {
 
 export const dynamic = 'force-dynamic';
 
-export default function SiteTouristiquePage() {
+function SiteTouristiquePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -1107,5 +1107,17 @@ export default function SiteTouristiquePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SiteTouristiquePage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="text-white">Chargement...</div>
+      </div>
+    }>
+      <SiteTouristiquePageContent />
+    </Suspense>
   );
 }

@@ -84,10 +84,12 @@ export default function SiteTouristiquePage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  // Street View embarqué (output=svembed pour forcer le panorama et non la carte)
-  const [mapUrl, setMapUrl] = useState(
+  // Street View embarqué (output=svembed pour forcer le panorama)
+  const [streetViewUrl, setStreetViewUrl] = useState(
     'https://maps.google.com/maps?q=&layer=c&cbll=-4.4419,15.2663&cbp=11,0,0,0,0&output=svembed'
   );
+  // Carte statique OSM pour visualiser les points (site + utilisateur)
+  const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
 
   // Filtrer les sites selon la recherche
   const filteredSites = sitesTouristiques.filter(site =>
@@ -99,11 +101,26 @@ export default function SiteTouristiquePage() {
   // Mettre à jour la carte quand un site est sélectionné
   useEffect(() => {
     if (selectedSite) {
-      // Street View centré sur le site sélectionné (panorama direct, sans affichage de la carte)
+      // Street View centré sur le site sélectionné (panorama direct, sans carte)
       const url = `https://maps.google.com/maps?q=&layer=c&cbll=${selectedSite.latitude},${selectedSite.longitude}&cbp=11,0,0,0,0&output=svembed`;
-      setMapUrl(url);
+      setStreetViewUrl(url);
     }
   }, [selectedSite]);
+
+  // Mettre à jour la carte statique (OpenStreetMap) pour visualiser les points
+  useEffect(() => {
+    const site = selectedSite ?? sitesTouristiques[0];
+    const siteMarker = `${site.latitude},${site.longitude},lightblue1`;
+
+    if (userLocation) {
+      const userMarker = `${userLocation.lat},${userLocation.lng},red-pushpin`;
+      const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${site.latitude},${site.longitude}&zoom=12&size=700x380&markers=${siteMarker}|${userMarker}`;
+      setStaticMapUrl(url);
+    } else {
+      const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${site.latitude},${site.longitude}&zoom=12&size=700x380&markers=${siteMarker}`;
+      setStaticMapUrl(url);
+    }
+  }, [selectedSite, userLocation]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -281,12 +298,12 @@ export default function SiteTouristiquePage() {
             </CardContent>
           </Card>
 
-          {/* Carte */}
+          {/* Street View */}
           <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
             <CardContent className="p-0">
               <div className="relative w-full h-[400px]">
                 <iframe
-                  src={mapUrl}
+                  src={streetViewUrl}
                   width="100%"
                   height="100%"
                   style={{ border: 0, filter: 'brightness(0.8) contrast(1.2)' }}
@@ -295,9 +312,32 @@ export default function SiteTouristiquePage() {
                   referrerPolicy="no-referrer-when-downgrade"
                   className="rounded-lg"
                 />
-                {/* Overlay pour personnaliser la carte avec notre charte */}
+                {/* Overlay identifiant l'appli */}
                 <div className="absolute top-2 right-2 bg-[#FF8800] text-white px-3 py-1 rounded-full text-xs font-semibold">
                   Ya Biso RDC
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Carte statique (OpenStreetMap) pour visualiser les points */}
+          <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
+            <CardContent className="p-0">
+              <div className="relative w-full h-[320px] bg-gray-800">
+                {staticMapUrl ? (
+                  <img
+                    src={staticMapUrl}
+                    alt="Carte des positions (OSM)"
+                    className="w-full h-full object-cover"
+                    style={{ filter: 'brightness(0.9) contrast(1.1)' }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                    Carte en cours de préparation...
+                  </div>
+                )}
+                <div className="absolute top-2 left-2 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                  Points : site + vous
                 </div>
               </div>
             </CardContent>

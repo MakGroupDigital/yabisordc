@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { UtensilsCrossed, ArrowLeft, Filter, X, MapPin, Navigation, Star, Clock, Truck } from 'lucide-react';
+import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import Image from 'next/image';
 import {
   Sheet,
   SheetContent,
@@ -17,6 +16,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface Restaurant {
   id: string;
@@ -38,14 +39,18 @@ interface Restaurant {
   nombreAvis: number;
   tempsLivraison: number;
   livre: boolean;
-  image?: string;
+  images: string[];
+  telephone?: string;
+  whatsapp?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 const restaurants: Restaurant[] = [
   {
     id: '1',
     nom: 'Restaurant Le Roi',
-    description: 'Cuisine congolaise authentique',
+    description: 'Cuisine congolaise authentique avec des plats traditionnels préparés avec amour. Ambiance chaleureuse et accueillante.',
     cuisine: 'Congolaise',
     ville: 'Kinshasa',
     province: 'Kinshasa',
@@ -54,11 +59,21 @@ const restaurants: Restaurant[] = [
     nombreAvis: 128,
     tempsLivraison: 30,
     livre: true,
+    telephone: '+243 900 005 100',
+    whatsapp: '+243900005100',
+    latitude: -4.3276,
+    longitude: 15.3136,
+    images: [
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+    ],
   },
   {
     id: '2',
     nom: 'La Terrasse',
-    description: 'Cuisine internationale et locale',
+    description: 'Cuisine internationale et locale dans un cadre moderne. Menu varié pour tous les goûts.',
     cuisine: 'Mixte',
     ville: 'Kinshasa',
     province: 'Kinshasa',
@@ -67,11 +82,20 @@ const restaurants: Restaurant[] = [
     nombreAvis: 95,
     tempsLivraison: 45,
     livre: true,
+    telephone: '+243 900 005 101',
+    whatsapp: '+243900005101',
+    latitude: -4.3300,
+    longitude: 15.3150,
+    images: [
+      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+    ],
   },
   {
     id: '3',
     nom: 'Mbote Restaurant',
-    description: 'Spécialités congolaises traditionnelles',
+    description: 'Spécialités congolaises traditionnelles préparées avec des ingrédients frais. Service exceptionnel.',
     cuisine: 'Congolaise',
     ville: 'Lubumbashi',
     province: 'Haut-Katanga',
@@ -80,11 +104,21 @@ const restaurants: Restaurant[] = [
     nombreAvis: 156,
     tempsLivraison: 35,
     livre: true,
+    telephone: '+243 900 005 102',
+    whatsapp: '+243900005102',
+    latitude: -11.6642,
+    longitude: 27.4794,
+    images: [
+      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+    ],
   },
   {
     id: '4',
     nom: 'Pizza Express',
-    description: 'Pizzas et plats italiens',
+    description: 'Pizzas et plats italiens authentiques. Pâte fraîche préparée quotidiennement.',
     cuisine: 'Italienne',
     ville: 'Kinshasa',
     province: 'Kinshasa',
@@ -93,11 +127,20 @@ const restaurants: Restaurant[] = [
     nombreAvis: 67,
     tempsLivraison: 25,
     livre: true,
+    telephone: '+243 900 005 103',
+    whatsapp: '+243900005103',
+    latitude: -4.3200,
+    longitude: 15.3100,
+    images: [
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+    ],
   },
   {
     id: '5',
     nom: 'Restaurant Nganda',
-    description: 'Cuisine congolaise et poisson frais',
+    description: 'Cuisine congolaise et poisson frais du lac. Spécialités de la région du Kivu.',
     cuisine: 'Congolaise',
     ville: 'Goma',
     province: 'Nord-Kivu',
@@ -106,6 +149,15 @@ const restaurants: Restaurant[] = [
     nombreAvis: 89,
     tempsLivraison: 40,
     livre: false,
+    telephone: '+243 900 005 104',
+    whatsapp: '+243900005104',
+    latitude: -1.6792,
+    longitude: 29.2228,
+    images: [
+      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+    ],
   },
 ];
 
@@ -124,8 +176,83 @@ export default function RestaurationPage() {
     ville: 'Toutes',
     province: 'Toutes',
   });
-  const [showLocationDialog, setShowLocationDialog] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentImages, setCurrentImages] = useState<Record<string, number>>({});
+  const [isScrolling, setIsScrolling] = useState<Record<string, boolean>>({});
+  const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Initialiser les indices d'images pour chaque restaurant
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    restaurants.forEach(restaurant => {
+      initial[restaurant.id] = 0;
+    });
+    setCurrentImages(initial);
+  }, []);
+
+  // Auto-scroll horizontal pour chaque restaurant
+  useEffect(() => {
+    restaurants.forEach(restaurant => {
+      if (restaurant.images.length <= 1) return;
+
+      const interval = setInterval(() => {
+        setCurrentImages(prev => ({
+          ...prev,
+          [restaurant.id]: ((prev[restaurant.id] || 0) + 1) % restaurant.images.length,
+        }));
+      }, 4000);
+
+      return () => clearInterval(interval);
+    });
+  }, []);
+
+  // Fonction pour faire défiler les images
+  const scrollToImage = (restaurantId: string, index: number) => {
+    const container = scrollRefs.current[restaurantId];
+    if (!container) return;
+
+    const imageWidth = container.clientWidth;
+    container.scrollTo({
+      left: imageWidth * index,
+      behavior: 'smooth',
+    });
+    setCurrentImages(prev => ({ ...prev, [restaurantId]: index }));
+  };
+
+  // Gestion du swipe/drag horizontal
+  const handleTouchStart = (restaurantId: string) => {
+    setIsScrolling(prev => ({ ...prev, [restaurantId]: true }));
+  };
+
+  const handleTouchEnd = (restaurantId: string) => {
+    setIsScrolling(prev => ({ ...prev, [restaurantId]: false }));
+  };
+
+  const handleScroll = (restaurantId: string) => {
+    if (isScrolling[restaurantId]) return;
+    
+    const container = scrollRefs.current[restaurantId];
+    if (!container) return;
+
+    const imageWidth = container.clientWidth;
+    const currentIndex = Math.round(container.scrollLeft / imageWidth);
+    setCurrentImages(prev => ({ ...prev, [restaurantId]: currentIndex }));
+  };
+
+  const nextImage = (restaurantId: string, maxImages: number) => {
+    setCurrentImages(prev => {
+      const next = ((prev[restaurantId] || 0) + 1) % maxImages;
+      scrollToImage(restaurantId, next);
+      return { ...prev, [restaurantId]: next };
+    });
+  };
+
+  const prevImage = (restaurantId: string, maxImages: number) => {
+    setCurrentImages(prev => {
+      const prevIndex = ((prev[restaurantId] || 0) - 1 + maxImages) % maxImages;
+      scrollToImage(restaurantId, prevIndex);
+      return { ...prev, [restaurantId]: prevIndex };
+    });
+  };
 
   // Filtrer les restaurants
   const filteredRestaurants = restaurants.filter(restaurant => {
@@ -141,44 +268,6 @@ export default function RestaurationPage() {
     return matchesSearch && matchesLivre && matchesCuisine && matchesVille && matchesProvince;
   });
 
-  const requestLocationPermission = () => {
-    setShowLocationDialog(true);
-  };
-
-  const handleLocationPermission = async () => {
-    setShowLocationDialog(false);
-
-    if (!navigator.geolocation) {
-      toast({
-        title: "Géolocalisation non supportée",
-        description: "Votre navigateur ne supporte pas la géolocalisation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        setUserLocation({ lat, lng });
-
-        toast({
-          title: "Localisation obtenue",
-          description: "Affichage des restaurants proches de vous",
-        });
-      },
-      (error) => {
-        console.error('Erreur géolocalisation:', error);
-        toast({
-          title: "Erreur de géolocalisation",
-          description: "Impossible d'accéder à votre position. Vérifiez les permissions.",
-          variant: "destructive",
-        });
-      }
-    );
-  };
-
   const resetFilters = () => {
     setFilters({
       livre: false,
@@ -192,6 +281,41 @@ export default function RestaurationPage() {
     filters.cuisine !== 'Toutes' || 
     filters.ville !== 'Toutes' || 
     filters.province !== 'Toutes';
+
+  const handleAppeler = (telephone: string, nom: string) => {
+    window.location.href = `tel:${telephone}`;
+    toast({
+      title: "Appel en cours",
+      description: `Appel de ${nom}`,
+    });
+  };
+
+  const handleWhatsApp = (whatsapp: string, nom: string) => {
+    const message = encodeURIComponent(`Bonjour, je suis intéressé(e) par votre restaurant ${nom}.`);
+    const url = `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=${message}`;
+    window.open(url, '_blank');
+    toast({
+      title: "WhatsApp ouvert",
+      description: `Discussion avec ${nom}`,
+    });
+  };
+
+  const handleItineraire = (restaurant: Restaurant) => {
+    if (!restaurant.latitude || !restaurant.longitude) {
+      toast({
+        title: "Itinéraire indisponible",
+        description: "Les coordonnées de ce restaurant ne sont pas disponibles",
+        variant: "destructive",
+      });
+      return;
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`;
+    window.open(url, '_blank');
+    toast({
+      title: "Itinéraire ouvert",
+      description: `Itinéraire vers ${restaurant.nom}`,
+    });
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -220,7 +344,7 @@ export default function RestaurationPage() {
                   size="icon"
                   className="text-white hover:bg-gray-800 relative"
                 >
-                  <Filter className="h-5 w-5" />
+                  <Navigation className="h-5 w-5" />
                   {hasActiveFilters && (
                     <span className="absolute top-1 right-1 h-2 w-2 bg-[#FF8800] rounded-full" />
                   )}
@@ -309,7 +433,6 @@ export default function RestaurationPage() {
                       variant="outline"
                       className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
                     >
-                      <X className="h-4 w-4 mr-2" />
                       Réinitialiser
                     </Button>
                     <Button
@@ -323,128 +446,196 @@ export default function RestaurationPage() {
               </SheetContent>
             </Sheet>
           </div>
+          {/* Barre de recherche */}
+          <div className="mt-3">
+            <Input
+              type="text"
+              placeholder="Rechercher un restaurant..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Contenu */}
-      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-20 pb-32">
-        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-4">
-          {/* Barre de recherche et bouton proche */}
-          <Card className="bg-gray-900/50 border-gray-800">
-            <CardContent className="p-4 space-y-3">
-              <Input
-                type="text"
-                placeholder="Rechercher un restaurant..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-              />
-              <Button
-                onClick={requestLocationPermission}
-                variant="outline"
-                className="w-full border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
-              >
-                <Navigation className="h-4 w-4 mr-2" />
-                Trouver un restaurant proche de moi
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Liste des restaurants */}
-          <div className="space-y-3">
-            {filteredRestaurants.length === 0 ? (
-              <Card className="bg-gray-900/50 border-gray-800">
-                <CardContent className="p-8 text-center">
-                  <p className="text-gray-400">Aucun restaurant trouvé</p>
-                  {hasActiveFilters && (
-                    <Button
-                      onClick={resetFilters}
-                      variant="outline"
-                      className="mt-4 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
-                    >
-                      Réinitialiser les filtres
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              filteredRestaurants.map((restaurant) => (
-                <Card key={restaurant.id} className="bg-gray-900/50 border-gray-800">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-white font-semibold text-lg">{restaurant.nom}</h3>
-                          {restaurant.livre && (
-                            <div className="flex items-center gap-1 text-[#FF8800]">
-                              <Truck className="h-4 w-4" />
-                              <span className="text-xs">Livraison</span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-gray-400 text-sm mb-2">{restaurant.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {restaurant.adresse}
-                          </span>
-                          <span>{restaurant.ville}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            <Star className="h-4 w-4 text-[#FFCC00] fill-[#FFCC00]" />
-                            <span className="text-white text-sm font-semibold">{restaurant.note}</span>
-                            <span className="text-gray-500 text-xs">({restaurant.nombreAvis})</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-gray-400 text-xs">
-                            <Clock className="h-3 w-3" />
-                            {restaurant.tempsLivraison} min
-                          </div>
-                          <span className="text-xs px-2 py-1 rounded bg-[#FF8800]/20 text-[#FF8800]">
-                            {restaurant.cuisine}
-                          </span>
-                        </div>
+      {/* Contenu - Style Instagram (feed vertical) */}
+      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-32 pb-32">
+        <div className="space-y-0">
+          {filteredRestaurants.length === 0 ? (
+            <Card className="bg-black border-b border-gray-800 rounded-none">
+              <CardContent className="p-8 text-center">
+                <p className="text-gray-400 mb-4">Aucun restaurant trouvé</p>
+                {hasActiveFilters && (
+                  <Button
+                    onClick={resetFilters}
+                    variant="outline"
+                    className="border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
+                  >
+                    Réinitialiser les filtres
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            filteredRestaurants.map((restaurant) => (
+              <Card key={restaurant.id} className="bg-black border-b border-gray-800 rounded-none">
+                <CardContent className="p-0">
+                  {/* Header de la carte (comme Instagram) */}
+                  <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-800">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF8800] to-[#FF6600] flex items-center justify-center text-white font-bold">
+                      {restaurant.nom.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-white font-semibold text-sm">{restaurant.nom}</h3>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <MapPin className="h-3 w-3" />
+                        <span>{restaurant.ville}</span>
+                        {restaurant.livre && (
+                          <>
+                            <span>•</span>
+                            <Truck className="h-3 w-3 text-[#FF8800]" />
+                            <span className="text-[#FF8800]">Livraison</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                      <span className="text-white text-sm font-semibold">{restaurant.note}</span>
+                    </div>
+                  </div>
+
+                  {/* Galerie d'images défilantes horizontalement */}
+                  <div className="relative w-full" style={{ aspectRatio: '1 / 1' }}>
+                    <div
+                      ref={(el) => {
+                        scrollRefs.current[restaurant.id] = el;
+                      }}
+                      className="flex overflow-x-scroll scrollbar-hide snap-x snap-mandatory scroll-smooth"
+                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                      onTouchStart={() => handleTouchStart(restaurant.id)}
+                      onTouchEnd={() => handleTouchEnd(restaurant.id)}
+                      onScroll={() => handleScroll(restaurant.id)}
+                    >
+                      {restaurant.images.map((image, index) => (
+                        <div
+                          key={index}
+                          className="relative min-w-full h-full snap-start"
+                        >
+                          <Image
+                            src={image}
+                            alt={`${restaurant.nom} - Image ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Boutons de navigation (si plusieurs images) */}
+                    {restaurant.images.length > 1 && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full h-8 w-8"
+                          onClick={() => prevImage(restaurant.id, restaurant.images.length)}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full h-8 w-8"
+                          onClick={() => nextImage(restaurant.id, restaurant.images.length)}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+
+                        {/* Indicateurs de pagination */}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                          {restaurant.images.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => scrollToImage(restaurant.id, index)}
+                              className={`h-1.5 rounded-full transition-all ${
+                                (currentImages[restaurant.id] || 0) === index
+                                  ? 'w-6 bg-white'
+                                  : 'w-1.5 bg-white/50'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Description et actions */}
+                  <div className="px-4 py-3 space-y-3">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                          <span className="text-white text-sm font-semibold">{restaurant.note}</span>
+                          <span className="text-gray-500 text-xs">({restaurant.nombreAvis})</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-400 text-xs">
+                          <Clock className="h-3 w-3" />
+                          <span>{restaurant.tempsLivraison} min</span>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded bg-[#FF8800]/20 text-[#FF8800]">
+                          {restaurant.cuisine}
+                        </span>
+                      </div>
+                      <p className="text-white font-semibold text-sm mb-1">{restaurant.nom}</p>
+                      <p className="text-gray-300 text-sm mb-2">{restaurant.description}</p>
+                      <div className="flex items-center gap-1 text-gray-400 text-xs">
+                        <MapPin className="h-3 w-3" />
+                        <span>{restaurant.adresse}, {restaurant.ville}</span>
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div className="grid grid-cols-3 gap-2 pt-2">
+                      {restaurant.latitude && restaurant.longitude && (
+                        <Button
+                          onClick={() => handleItineraire(restaurant)}
+                          variant="outline"
+                          className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 text-xs"
+                        >
+                          <Navigation className="h-3 w-3 mr-1" />
+                          Itinéraire
+                        </Button>
+                      )}
+                      {restaurant.telephone && (
+                        <Button
+                          onClick={() => handleAppeler(restaurant.telephone!, restaurant.nom)}
+                          variant="outline"
+                          className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 text-xs"
+                        >
+                          <Phone className="h-3 w-3 mr-1" />
+                          Appeler
+                        </Button>
+                      )}
+                      {restaurant.whatsapp && (
+                        <Button
+                          onClick={() => handleWhatsApp(restaurant.whatsapp!, restaurant.nom)}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs"
+                        >
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          WhatsApp
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Dialog pour demander la permission de localisation */}
-      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <DialogContent className="max-w-md bg-gray-900 border-gray-800 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Partager votre localisation</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Pour trouver les restaurants près de vous, nous avons besoin d'accéder à votre position.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 mt-6">
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={handleLocationPermission}
-                className="w-full bg-[#FF8800] hover:bg-[#FF8800]/90 text-white h-12 text-lg font-semibold"
-              >
-                <Navigation className="h-5 w-5 mr-2" />
-                Autoriser l'accès à la localisation
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowLocationDialog(false)}
-                className="w-full border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 h-12"
-              >
-                Annuler
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="pointer-events-auto">

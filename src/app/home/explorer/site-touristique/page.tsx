@@ -134,6 +134,8 @@ const MapComponent = dynamic(() => import('./map-component'), {
   ),
 });
 
+export const dynamic = 'force-dynamic';
+
 export default function SiteTouristiquePage() {
   const router = useRouter();
   const searchParams = useSearchParams();

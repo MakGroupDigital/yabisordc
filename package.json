@@ -14,7 +14,8 @@
     "open:firebase": "node scripts/open-firebase-console.js",
     "check:firebase": "firebase projects:list",
     "generate:icons": "node scripts/generate-icons.js",
-    "pwa:build": "npm run build && npm run generate:icons"
+    "generate:assets": "node scripts/generate-all-assets.js",
+    "pwa:build": "npm run build && npm run generate:assets"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",

@@ -53,14 +53,20 @@ export const metadata: Metadata = {
     description: 'Votre porte d\'entrée vers des paysages époustouflants, une culture riche et des aventures inoubliables en République Démocratique du Congo.',
     images: [
       {
-        url: 'https://res.cloudinary.com/dy73hzkpm/image/upload/v1764155959/IMG_7775_cxdvvm.png',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Logo Ya Biso RDC',
+        alt: 'Ya Biso RDC - Découvrez l\'âme du Congo',
       },
     ],
     locale: 'fr_FR',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ya Biso RDC - Découvrez l\'âme du Congo',
+    description: 'Votre porte d\'entrée vers des paysages époustouflants, une culture riche et des aventures inoubliables en République Démocratique du Congo.',
+    images: ['/og-image.png'],
   },
 };
 

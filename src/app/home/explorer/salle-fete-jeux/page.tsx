@@ -88,6 +88,8 @@ const offres: SalleOffre[] = [
   },
 ];
 
+export const dynamic = 'force-dynamic';
+
 export default function SalleFeteJeuxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();

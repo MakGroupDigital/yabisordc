@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation, Filter, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -157,10 +157,12 @@ const restaurants: Restaurant[] = [
 ];
 
 const villes = ['Toutes', 'Kinshasa', 'Lubumbashi', 'Goma', 'Kisangani'];
+export const dynamic = 'force-dynamic';
+
 const provinces = ['Toutes', 'Kinshasa', 'Haut-Katanga', 'Nord-Kivu', 'Tshopo'];
 const cuisines = ['Toutes', 'Congolaise', 'Mixte', 'Italienne', 'Française'];
 
-export default function RestaurationPage() {
+function RestaurationPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -685,5 +687,17 @@ export default function RestaurationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RestaurationPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="text-white">Chargement...</div>
+      </div>
+    }>
+      <RestaurationPageContent />
+    </Suspense>
   );
 }

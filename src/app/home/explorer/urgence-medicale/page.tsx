@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { ArrowLeft, Phone, Navigation, MessageCircle, MapPin, Clock, Star, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,8 @@ const hopitaux: Hopital[] = [
     image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80',
   },
 ];
+
+export const dynamic = 'force-dynamic';
 
 export default function UrgenceMedicalePage() {
   const router = useRouter();

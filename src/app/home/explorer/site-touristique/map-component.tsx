@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -23,6 +23,10 @@ interface MapComponentProps {
   center: [number, number];
   zoom: number;
   onSiteSelect: (site: TouristSite) => void;
+  isNavigating?: boolean;
+  navigationTarget?: TouristSite | null;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 // Icône personnalisée pour les sites touristiques (orange)
@@ -86,44 +90,119 @@ const selectedSiteIcon = L.divIcon({
   popupAnchor: [0, -48],
 });
 
-// Icône pour la position de l'utilisateur (bleu pulsant)
-const userIcon = L.divIcon({
+// Icône pour la position de l'utilisateur (personne qui marche)
+const createUserIcon = (heading?: number) => L.divIcon({
   className: 'user-marker',
   html: `
     <div style="
       position: relative;
-      width: 24px;
-      height: 24px;
+      width: 44px;
+      height: 44px;
     ">
+      <!-- Cercle de précision -->
       <div style="
         position: absolute;
-        width: 24px;
-        height: 24px;
-        background: #4285F4;
+        width: 60px;
+        height: 60px;
+        background: rgba(66,133,244,0.15);
         border-radius: 50%;
-        border: 4px solid white;
-        box-shadow: 0 2px 10px rgba(66,133,244,0.5);
-      "></div>
-      <div style="
-        position: absolute;
-        width: 48px;
-        height: 48px;
-        background: rgba(66,133,244,0.2);
-        border-radius: 50%;
-        top: -12px;
-        left: -12px;
+        top: -8px;
+        left: -8px;
         animation: userPulse 2s infinite;
       "></div>
+      <!-- Icône personne -->
+      <div style="
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%);
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 4px 15px rgba(66,133,244,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        ${heading !== undefined ? `transform: rotate(${heading}deg);` : ''}
+      ">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <circle cx="12" cy="4" r="3"/>
+          <path d="M12 8c-2.5 0-4.5 1.5-4.5 3.5V14h2v7h5v-7h2v-2.5c0-2-2-3.5-4.5-3.5z"/>
+        </svg>
+      </div>
+      <!-- Flèche de direction -->
+      ${heading !== undefined ? `
+      <div style="
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 14px solid #4285F4;
+      "></div>
+      ` : ''}
     </div>
     <style>
       @keyframes userPulse {
         0%, 100% { transform: scale(1); opacity: 0.6; }
-        50% { transform: scale(1.5); opacity: 0.2; }
+        50% { transform: scale(1.3); opacity: 0.2; }
       }
     </style>
   `,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
+// Icône destination (drapeau)
+const destinationIcon = L.divIcon({
+  className: 'destination-marker',
+  html: `
+    <div style="
+      position: relative;
+      width: 40px;
+      height: 50px;
+    ">
+      <div style="
+        position: absolute;
+        width: 4px;
+        height: 50px;
+        background: #FF4444;
+        left: 4px;
+        top: 0;
+        border-radius: 2px;
+      "></div>
+      <div style="
+        position: absolute;
+        left: 8px;
+        top: 0;
+        width: 32px;
+        height: 24px;
+        background: linear-gradient(135deg, #FF4444 0%, #CC0000 100%);
+        border-radius: 0 4px 4px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(255,68,68,0.4);
+      ">
+        <span style="font-size: 14px;">🏁</span>
+      </div>
+      <div style="
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 12px;
+        height: 12px;
+        background: #FF4444;
+        border-radius: 50%;
+        border: 2px solid white;
+      "></div>
+    </div>
+  `,
+  iconSize: [40, 50],
+  iconAnchor: [6, 50],
+  popupAnchor: [14, -50],
 });
 
 export default function MapComponent({
@@ -133,11 +212,17 @@ export default function MapComponent({
   center,
   zoom,
   onSiteSelect,
+  isNavigating = false,
+  navigationTarget = null,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: MapComponentProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const userMarkerRef = useRef<L.Marker | null>(null);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+  const destinationMarkerRef = useRef<L.Marker | null>(null);
 
   // Initialiser la carte
   useEffect(() => {
@@ -148,6 +233,7 @@ export default function MapComponent({
       center: center,
       zoom: zoom,
       zoomControl: false,
+      attributionControl: false, // Masquer l'attribution
     });
 
     // Ajouter le contrôle de zoom en bas à droite
@@ -155,7 +241,6 @@ export default function MapComponent({
 
     // Utiliser un style de carte sombre (CartoDB Dark Matter)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19,
     }).addTo(map);
@@ -177,6 +262,15 @@ export default function MapComponent({
     }
   }, [center, zoom]);
 
+  // Invalider la taille de la carte quand on passe en plein écran
+  useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 100);
+    }
+  }, [isFullscreen]);
+
   // Mettre à jour les marqueurs des sites
   useEffect(() => {
     if (!mapRef.current) return;
@@ -188,6 +282,11 @@ export default function MapComponent({
     // Ajouter les nouveaux marqueurs
     sites.forEach((site) => {
       const isSelected = selectedSite?.id === site.id;
+      const isDestination = navigationTarget?.id === site.id;
+      
+      // Ne pas ajouter de marqueur si c'est la destination en mode navigation
+      if (isDestination && isNavigating) return;
+      
       const marker = L.marker([site.latitude, site.longitude], {
         icon: isSelected ? selectedSiteIcon : siteIcon,
       }).addTo(mapRef.current!);
@@ -228,7 +327,7 @@ export default function MapComponent({
 
       markersRef.current.push(marker);
     });
-  }, [sites, selectedSite, onSiteSelect]);
+  }, [sites, selectedSite, onSiteSelect, isNavigating, navigationTarget]);
 
   // Mettre à jour le marqueur utilisateur
   useEffect(() => {
@@ -243,17 +342,21 @@ export default function MapComponent({
     // Ajouter le nouveau marqueur utilisateur
     if (userLocation) {
       const marker = L.marker([userLocation.lat, userLocation.lng], {
-        icon: userIcon,
+        icon: createUserIcon(),
+        zIndexOffset: 1000, // Au-dessus des autres marqueurs
       }).addTo(mapRef.current);
 
       marker.bindPopup(`
         <div style="
-          padding: 8px;
+          padding: 12px;
           font-family: system-ui, -apple-system, sans-serif;
           text-align: center;
         ">
-          <div style="font-size: 24px; margin-bottom: 4px;">📍</div>
-          <div style="font-weight: bold; color: #4285F4;">Vous êtes ici</div>
+          <div style="font-size: 28px; margin-bottom: 8px;">🚶</div>
+          <div style="font-weight: bold; color: #4285F4; font-size: 14px;">Vous êtes ici</div>
+          <div style="color: #666; font-size: 12px; margin-top: 4px;">
+            ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)}
+          </div>
         </div>
       `);
 
@@ -261,12 +364,137 @@ export default function MapComponent({
     }
   }, [userLocation]);
 
+  // Dessiner la route et le marqueur de destination en mode navigation
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Supprimer l'ancienne route
+    if (routeLineRef.current) {
+      routeLineRef.current.remove();
+      routeLineRef.current = null;
+    }
+
+    // Supprimer l'ancien marqueur de destination
+    if (destinationMarkerRef.current) {
+      destinationMarkerRef.current.remove();
+      destinationMarkerRef.current = null;
+    }
+
+    // Dessiner la nouvelle route si en mode navigation
+    if (isNavigating && userLocation && navigationTarget) {
+      // Ligne de route (simplifiée - ligne droite)
+      const routeLine = L.polyline(
+        [
+          [userLocation.lat, userLocation.lng],
+          [navigationTarget.latitude, navigationTarget.longitude],
+        ],
+        {
+          color: '#4285F4',
+          weight: 5,
+          opacity: 0.8,
+          dashArray: '10, 10',
+          lineCap: 'round',
+        }
+      ).addTo(mapRef.current);
+
+      routeLineRef.current = routeLine;
+
+      // Marqueur de destination
+      const destMarker = L.marker(
+        [navigationTarget.latitude, navigationTarget.longitude],
+        { icon: destinationIcon }
+      ).addTo(mapRef.current);
+
+      destMarker.bindPopup(`
+        <div style="
+          padding: 12px;
+          font-family: system-ui, -apple-system, sans-serif;
+          text-align: center;
+        ">
+          <div style="font-size: 24px; margin-bottom: 8px;">🏁</div>
+          <div style="font-weight: bold; color: #FF4444; font-size: 14px;">Destination</div>
+          <div style="color: #333; font-size: 13px; margin-top: 4px;">${navigationTarget.nom}</div>
+        </div>
+      `);
+
+      destinationMarkerRef.current = destMarker;
+
+      // Ajuster la vue pour voir les deux points
+      const bounds = L.latLngBounds(
+        [userLocation.lat, userLocation.lng],
+        [navigationTarget.latitude, navigationTarget.longitude]
+      );
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [isNavigating, userLocation, navigationTarget]);
+
   return (
-    <div
-      ref={mapContainerRef}
-      className="w-full h-full"
-      style={{ background: '#1a1a2e' }}
-    />
+    <div className="relative w-full h-full">
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full"
+        style={{ background: '#1a1a2e' }}
+      />
+      
+      {/* Bouton plein écran */}
+      {onToggleFullscreen && (
+        <button
+          onClick={onToggleFullscreen}
+          className="absolute top-2 left-2 z-[1000] bg-gray-900/90 hover:bg-gray-800 text-white p-2 rounded-lg shadow-lg transition-all"
+          title={isFullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+        >
+          {isFullscreen ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* Indicateur de navigation */}
+      {isNavigating && navigationTarget && userLocation && (
+        <div className="absolute bottom-16 left-2 right-2 z-[1000] bg-gray-900/95 rounded-xl p-3 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-white font-semibold text-sm">{navigationTarget.nom}</div>
+              <div className="text-blue-400 text-xs">Navigation en cours...</div>
+            </div>
+            <div className="text-right">
+              <div className="text-white font-bold text-lg">
+                {calculateDistance(
+                  userLocation.lat,
+                  userLocation.lng,
+                  navigationTarget.latitude,
+                  navigationTarget.longitude
+                ).toFixed(1)} km
+              </div>
+              <div className="text-gray-400 text-xs">Distance</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
+// Calculer la distance entre deux points (formule de Haversine)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}

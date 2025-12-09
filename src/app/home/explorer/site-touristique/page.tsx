@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle } from 'lucide-react';
+import { MapPin, ArrowLeft, Search, Navigation, Loader2, AlertCircle, Phone, MessageCircle, X, Maximize2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
@@ -133,6 +133,12 @@ export default function SiteTouristiquePage() {
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([-4.3250, 15.3222]); // Kinshasa par défaut
   const [mapZoom, setMapZoom] = useState(12);
+  
+  // États pour la navigation
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationTarget, setNavigationTarget] = useState<TouristSite | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
 
   // Filtrer les sites selon la recherche
   const filteredSites = sitesTouristiques.filter(site =>
@@ -143,19 +149,28 @@ export default function SiteTouristiquePage() {
 
   // Mettre à jour le centre de la carte quand un site est sélectionné
   useEffect(() => {
-    if (selectedSite) {
+    if (selectedSite && !isNavigating) {
       setMapCenter([selectedSite.latitude, selectedSite.longitude]);
       setMapZoom(15);
     }
-  }, [selectedSite]);
+  }, [selectedSite, isNavigating]);
 
   // Centrer sur l'utilisateur quand sa position est obtenue
   useEffect(() => {
-    if (userLocation && !selectedSite) {
+    if (userLocation && !selectedSite && !isNavigating) {
       setMapCenter([userLocation.lat, userLocation.lng]);
       setMapZoom(13);
     }
-  }, [userLocation, selectedSite]);
+  }, [userLocation, selectedSite, isNavigating]);
+
+  // Nettoyer le watch GPS quand le composant est démonté
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -270,13 +285,177 @@ export default function SiteTouristiquePage() {
     window.open(`https://wa.me/${phone.replace('+', '')}?text=${message}`, '_blank');
   };
 
-  const handleItineraire = (lat: number, lng: number, siteName: string) => {
-    if (userLocation) {
-      window.open(`https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${lat},${lng}`, '_blank');
-    } else {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+  // Démarrer la navigation vers un site
+  const startNavigation = useCallback((site: TouristSite) => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Géolocalisation non supportée",
+        description: "Votre navigateur ne supporte pas la géolocalisation",
+        variant: "destructive",
+      });
+      return;
     }
-  };
+
+    // Demander la position initiale
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setUserLocation({ lat, lng });
+        setNavigationTarget(site);
+        setIsNavigating(true);
+        setIsFullscreen(true); // Passer en plein écran automatiquement
+
+        toast({
+          title: "Navigation démarrée",
+          description: `Vers ${site.nom}`,
+        });
+
+        // Commencer le suivi GPS en temps réel
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => {
+            setUserLocation({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            });
+          },
+          (error) => {
+            console.error('Erreur GPS:', error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0,
+          }
+        );
+      },
+      (error) => {
+        console.error('Erreur géolocalisation:', error);
+        toast({
+          title: "Position requise",
+          description: "Veuillez autoriser l'accès à votre position pour la navigation",
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }, [toast]);
+
+  // Arrêter la navigation
+  const stopNavigation = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsNavigating(false);
+    setNavigationTarget(null);
+    setIsFullscreen(false);
+    
+    toast({
+      title: "Navigation terminée",
+      description: "Vous avez quitté le mode navigation",
+    });
+  }, [toast]);
+
+  // Toggle plein écran
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  // Rendu en mode plein écran
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-black">
+        {/* Header en plein écran */}
+        <div className="absolute top-0 left-0 right-0 z-[10000] bg-black/80 backdrop-blur-md">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={isNavigating ? stopNavigation : toggleFullscreen}
+                className="text-white hover:bg-gray-800"
+              >
+                {isNavigating ? <X className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
+              </Button>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#FF8800]/20">
+                  <MapPin className="h-5 w-5 text-[#FF8800]" />
+                </div>
+                <span className="text-white font-semibold">
+                  {isNavigating ? 'Navigation' : 'Carte'}
+                </span>
+              </div>
+            </div>
+            {isNavigating && navigationTarget && (
+              <div className="text-right">
+                <div className="text-white font-bold">
+                  {userLocation ? calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    navigationTarget.latitude,
+                    navigationTarget.longitude
+                  ).toFixed(1) : '...'} km
+                </div>
+                <div className="text-gray-400 text-xs">restants</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Carte plein écran */}
+        <div className="w-full h-full pt-14">
+          <MapComponent
+            sites={searchQuery ? filteredSites : sitesTouristiques}
+            selectedSite={selectedSite}
+            userLocation={userLocation}
+            center={mapCenter}
+            zoom={mapZoom}
+            onSiteSelect={(site: TouristSite) => setSelectedSite(site)}
+            isNavigating={isNavigating}
+            navigationTarget={navigationTarget}
+            isFullscreen={true}
+            onToggleFullscreen={toggleFullscreen}
+          />
+        </div>
+
+        {/* Badge Ya Biso RDC */}
+        <div className="absolute top-16 right-4 bg-[#FF8800] text-white px-3 py-1 rounded-full text-xs font-semibold z-[10001]">
+          Ya Biso RDC
+        </div>
+
+        {/* Info navigation en bas */}
+        {isNavigating && navigationTarget && (
+          <div className="absolute bottom-4 left-4 right-4 z-[10001]">
+            <Card className="bg-gray-900/95 border-gray-700">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#FF8800] rounded-xl flex items-center justify-center">
+                    <Navigation className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold">{navigationTarget.nom}</h3>
+                    <p className="text-gray-400 text-sm">{navigationTarget.ville}, {navigationTarget.province}</p>
+                  </div>
+                  <Button
+                    onClick={stopNavigation}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    Arrêter
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -361,6 +540,10 @@ export default function SiteTouristiquePage() {
                   center={mapCenter}
                   zoom={mapZoom}
                   onSiteSelect={(site: TouristSite) => setSelectedSite(site)}
+                  isNavigating={false}
+                  navigationTarget={null}
+                  isFullscreen={false}
+                  onToggleFullscreen={toggleFullscreen}
                 />
                 {/* Overlay identifiant l'appli */}
                 <div className="absolute top-2 right-2 bg-[#FF8800] text-white px-3 py-1 rounded-full text-xs font-semibold z-[1000]">
@@ -368,7 +551,7 @@ export default function SiteTouristiquePage() {
                 </div>
                 {userLocation && (
                   <div className="absolute bottom-2 left-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold z-[1000]">
-                    📍 Vous êtes ici
+                    🚶 Vous êtes ici
                   </div>
                 )}
               </div>
@@ -390,12 +573,20 @@ export default function SiteTouristiquePage() {
                       <span>{selectedSite.ville}</span>
                       <span>•</span>
                       <span>{selectedSite.province}</span>
+                      {userLocation && (
+                        <>
+                          <span>•</span>
+                          <span className="text-[#FF8800] font-semibold">
+                            {calculateDistance(userLocation.lat, userLocation.lng, selectedSite.latitude, selectedSite.longitude).toFixed(1)} km
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleItineraire(selectedSite.latitude, selectedSite.longitude, selectedSite.nom)}
+                    onClick={() => startNavigation(selectedSite)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     size="sm"
                   >

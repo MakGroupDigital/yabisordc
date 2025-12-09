@@ -1,6 +1,6 @@
 {
   "packageId": "com.yabiso.rdc",
-  "host": "studio-3821305079-74f59.firebaseapp.com",
+  "host": "yabiso-drc.com",
   "name": "Ya Biso RDC",
   "launcherName": "Ya Biso",
   "display": "standalone",
@@ -13,9 +13,9 @@
   "backgroundColor": "#000000",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "/icons/icon-512x512.png",
-  "maskableIconUrl": "/icons/icon-512x512.png",
-  "monochromeIconUrl": "/icons/icon-512x512.png",
+  "iconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "maskableIconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "monochromeIconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android-signing/yabiso-release.keystore",
@@ -30,7 +30,7 @@
       "url": "/home/explorer",
       "icons": [
         {
-          "src": "/icons/icon-96x96.png",
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
           "sizes": "96x96"
         }
       ]
@@ -41,7 +41,7 @@
       "url": "/home/explorer/restauration",
       "icons": [
         {
-          "src": "/icons/icon-96x96.png",
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
           "sizes": "96x96"
         }
       ]
@@ -52,14 +52,14 @@
       "url": "/home/explorer/urgence-medicale",
       "icons": [
         {
-          "src": "/icons/icon-96x96.png",
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
           "sizes": "96x96"
         }
       ]
     }
   ],
   "generatorApp": "PWABuilder",
-  "webManifestUrl": "/manifest.json",
+  "webManifestUrl": "https://yabiso-drc.com/manifest.json",
   "fallbackType": "customtabs",
   "features": {
     "locationDelegation": {

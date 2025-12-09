@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import {
   getRouteFromOSRM,
   formatDistance,
@@ -125,7 +125,7 @@ const sitesTouristiques: TouristSite[] = [
 ];
 
 // Composant Map chargé dynamiquement (Leaflet ne fonctionne pas en SSR)
-const MapComponent = dynamic(() => import('./map-component'), {
+const MapComponent = nextDynamic(() => import('./map-component'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-gray-800">
@@ -133,8 +133,6 @@ const MapComponent = dynamic(() => import('./map-component'), {
     </div>
   ),
 });
-
-export const dynamic = 'force-dynamic';
 
 function SiteTouristiquePageContent() {
   const router = useRouter();

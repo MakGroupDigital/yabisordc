@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
+import { NavigationModal, NavigationDestination } from '@/components/navigation/navigation-modal';
 
 interface Hopital {
   id: string;
@@ -94,6 +95,8 @@ const hopitaux: Hopital[] = [
 export default function UrgenceMedicalePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [navigationDestination, setNavigationDestination] = useState<NavigationDestination | null>(null);
+  const [showNavigation, setShowNavigation] = useState(false);
 
   const handleAppeler = (telephone: string, nom: string) => {
     window.location.href = `tel:${telephone}`;
@@ -104,12 +107,16 @@ export default function UrgenceMedicalePage() {
   };
 
   const handleItineraire = (hopital: Hopital) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${hopital.latitude},${hopital.longitude}`;
-    window.open(url, '_blank');
-    toast({
-      title: "Itinéraire ouvert",
-      description: `Itinéraire vers ${hopital.nom}`,
+    setNavigationDestination({
+      id: hopital.id,
+      nom: hopital.nom,
+      adresse: hopital.adresse,
+      latitude: hopital.latitude,
+      longitude: hopital.longitude,
+      telephone: hopital.telephone,
+      type: 'hôpital',
     });
+    setShowNavigation(true);
   };
 
   const handleWhatsApp = (whatsapp: string, nom: string) => {
@@ -188,7 +195,7 @@ export default function UrgenceMedicalePage() {
                     <div>
                       <h3 className="text-white font-bold text-lg mb-2">{hopital.nom}</h3>
                       {hopital.specialite && (
-                        <p className="text-[#FF8800] text-sm font-semibold mb-2">{hopital.specialite}</p>
+                        <p className="text-red-400 text-sm font-semibold mb-2">{hopital.specialite}</p>
                       )}
                       <div className="flex items-start gap-2 text-gray-400 text-sm mb-2">
                         <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -213,7 +220,7 @@ export default function UrgenceMedicalePage() {
                       <Button
                         onClick={() => handleAppeler(hopital.telephone, hopital.nom)}
                         variant="outline"
-                        className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 h-10 text-xs"
+                        className="flex-1 border-red-600/50 bg-red-600/20 text-white hover:bg-red-600/30 h-10 text-xs"
                       >
                         <Phone className="h-4 w-4 mr-1" />
                         Appeler
@@ -235,6 +242,15 @@ export default function UrgenceMedicalePage() {
         </div>
       </div>
 
+      {/* Modal de navigation */}
+      <NavigationModal
+        destination={navigationDestination}
+        isOpen={showNavigation}
+        onClose={() => setShowNavigation(false)}
+        accentColor="#ef4444"
+        destinationType="hôpital"
+      />
+
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="pointer-events-auto">
@@ -244,6 +260,3 @@ export default function UrgenceMedicalePage() {
     </div>
   );
 }
-
-
-

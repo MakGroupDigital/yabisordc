@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { BottomNav } from "@/components/home/bottom-nav";
-import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation } from 'lucide-react';
+import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation, Filter } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
@@ -19,13 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { NavigationModal, NavigationDestination } from '@/components/navigation/navigation-modal';
 
 interface Restaurant {
   id: string;
@@ -179,8 +173,11 @@ export default function RestaurationPage() {
   const [currentImages, setCurrentImages] = useState<Record<string, number>>({});
   const [isScrolling, setIsScrolling] = useState<Record<string, boolean>>({});
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
+  // Navigation
+  const [navigationDestination, setNavigationDestination] = useState<NavigationDestination | null>(null);
+  const [showNavigation, setShowNavigation] = useState(false);
 
-  // Initialiser les indices d'images pour chaque restaurant
   useEffect(() => {
     const initial: Record<string, number> = {};
     restaurants.forEach(restaurant => {
@@ -189,7 +186,6 @@ export default function RestaurationPage() {
     setCurrentImages(initial);
   }, []);
 
-  // Auto-scroll horizontal pour chaque restaurant
   useEffect(() => {
     restaurants.forEach(restaurant => {
       if (restaurant.images.length <= 1) return;
@@ -205,7 +201,6 @@ export default function RestaurationPage() {
     });
   }, []);
 
-  // Fonction pour faire défiler les images
   const scrollToImage = (restaurantId: string, index: number) => {
     const container = scrollRefs.current[restaurantId];
     if (!container) return;
@@ -218,7 +213,6 @@ export default function RestaurationPage() {
     setCurrentImages(prev => ({ ...prev, [restaurantId]: index }));
   };
 
-  // Gestion du swipe/drag horizontal
   const handleTouchStart = (restaurantId: string) => {
     setIsScrolling(prev => ({ ...prev, [restaurantId]: true }));
   };
@@ -254,7 +248,6 @@ export default function RestaurationPage() {
     });
   };
 
-  // Filtrer les restaurants
   const filteredRestaurants = restaurants.filter(restaurant => {
     const matchesSearch = restaurant.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       restaurant.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -309,12 +302,17 @@ export default function RestaurationPage() {
       });
       return;
     }
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`;
-    window.open(url, '_blank');
-    toast({
-      title: "Itinéraire ouvert",
-      description: `Itinéraire vers ${restaurant.nom}`,
+    
+    setNavigationDestination({
+      id: restaurant.id,
+      nom: restaurant.nom,
+      adresse: `${restaurant.adresse}, ${restaurant.ville}`,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      telephone: restaurant.telephone,
+      type: 'restaurant',
     });
+    setShowNavigation(true);
   };
 
   return (
@@ -344,7 +342,7 @@ export default function RestaurationPage() {
                   size="icon"
                   className="text-white hover:bg-gray-800 relative"
                 >
-                  <Navigation className="h-5 w-5" />
+                  <Filter className="h-5 w-5" />
                   {hasActiveFilters && (
                     <span className="absolute top-1 right-1 h-2 w-2 bg-[#FF8800] rounded-full" />
                   )}
@@ -355,7 +353,6 @@ export default function RestaurationPage() {
                   <SheetTitle className="text-2xl font-bold">Filtres</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6 space-y-6">
-                  {/* Livraison */}
                   <div className="space-y-3">
                     <Label className="text-white font-semibold">Options</Label>
                     <div className="flex items-center space-x-2">
@@ -365,17 +362,13 @@ export default function RestaurationPage() {
                         onCheckedChange={(checked) => setFilters({ ...filters, livre: checked as boolean })}
                         className="border-gray-700 data-[state=checked]:bg-[#FF8800] data-[state=checked]:border-[#FF8800]"
                       />
-                      <label
-                        htmlFor="livre"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white flex items-center gap-2"
-                      >
+                      <label htmlFor="livre" className="text-sm font-medium text-white flex items-center gap-2">
                         <Truck className="h-4 w-4" />
                         Livraison disponible
                       </label>
                     </div>
                   </div>
 
-                  {/* Cuisine */}
                   <div className="space-y-3">
                     <Label className="text-white font-semibold">Type de cuisine</Label>
                     <Select value={filters.cuisine} onValueChange={(value) => setFilters({ ...filters, cuisine: value })}>
@@ -392,7 +385,6 @@ export default function RestaurationPage() {
                     </Select>
                   </div>
 
-                  {/* Ville */}
                   <div className="space-y-3">
                     <Label className="text-white font-semibold">Ville</Label>
                     <Select value={filters.ville} onValueChange={(value) => setFilters({ ...filters, ville: value })}>
@@ -409,7 +401,6 @@ export default function RestaurationPage() {
                     </Select>
                   </div>
 
-                  {/* Province */}
                   <div className="space-y-3">
                     <Label className="text-white font-semibold">Province</Label>
                     <Select value={filters.province} onValueChange={(value) => setFilters({ ...filters, province: value })}>
@@ -426,7 +417,6 @@ export default function RestaurationPage() {
                     </Select>
                   </div>
 
-                  {/* Boutons */}
                   <div className="flex gap-3 pt-4">
                     <Button
                       onClick={resetFilters}
@@ -446,7 +436,6 @@ export default function RestaurationPage() {
               </SheetContent>
             </Sheet>
           </div>
-          {/* Barre de recherche */}
           <div className="mt-3">
             <Input
               type="text"
@@ -459,7 +448,7 @@ export default function RestaurationPage() {
         </div>
       </div>
 
-      {/* Contenu - Style Instagram (feed vertical) */}
+      {/* Contenu */}
       <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-32 pb-32">
         <div className="space-y-0">
           {filteredRestaurants.length === 0 ? (
@@ -481,7 +470,6 @@ export default function RestaurationPage() {
             filteredRestaurants.map((restaurant) => (
               <Card key={restaurant.id} className="bg-black border-b border-gray-800 rounded-none">
                 <CardContent className="p-0">
-                  {/* Header de la carte (comme Instagram) */}
                   <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-800">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF8800] to-[#FF6600] flex items-center justify-center text-white font-bold">
                       {restaurant.nom.charAt(0)}
@@ -506,12 +494,9 @@ export default function RestaurationPage() {
                     </div>
                   </div>
 
-                  {/* Galerie d'images défilantes horizontalement */}
                   <div className="relative w-full" style={{ aspectRatio: '1 / 1' }}>
                     <div
-                      ref={(el) => {
-                        scrollRefs.current[restaurant.id] = el;
-                      }}
+                      ref={(el) => { scrollRefs.current[restaurant.id] = el; }}
                       className="flex overflow-x-scroll scrollbar-hide snap-x snap-mandatory scroll-smooth"
                       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                       onTouchStart={() => handleTouchStart(restaurant.id)}
@@ -519,10 +504,7 @@ export default function RestaurationPage() {
                       onScroll={() => handleScroll(restaurant.id)}
                     >
                       {restaurant.images.map((image, index) => (
-                        <div
-                          key={index}
-                          className="relative min-w-full h-full snap-start"
-                        >
+                        <div key={index} className="relative min-w-full h-full snap-start">
                           <Image
                             src={image}
                             alt={`${restaurant.nom} - Image ${index + 1}`}
@@ -533,7 +515,6 @@ export default function RestaurationPage() {
                       ))}
                     </div>
 
-                    {/* Boutons de navigation (si plusieurs images) */}
                     {restaurant.images.length > 1 && (
                       <>
                         <Button
@@ -553,7 +534,6 @@ export default function RestaurationPage() {
                           <ChevronRight className="h-5 w-5" />
                         </Button>
 
-                        {/* Indicateurs de pagination */}
                         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                           {restaurant.images.map((_, index) => (
                             <button
@@ -571,7 +551,6 @@ export default function RestaurationPage() {
                     )}
                   </div>
 
-                  {/* Description et actions */}
                   <div className="px-4 py-3 space-y-3">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
@@ -596,7 +575,6 @@ export default function RestaurationPage() {
                       </div>
                     </div>
 
-                    {/* Boutons d'action */}
                     <div className="grid grid-cols-3 gap-2 pt-2">
                       {restaurant.latitude && restaurant.longitude && (
                         <Button
@@ -635,6 +613,15 @@ export default function RestaurationPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de navigation */}
+      <NavigationModal
+        destination={navigationDestination}
+        isOpen={showNavigation}
+        onClose={() => setShowNavigation(false)}
+        accentColor="#FF8800"
+        destinationType="restaurant"
+      />
 
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">

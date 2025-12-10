@@ -222,8 +222,42 @@ export class NavigationVoice {
     
     const setVoice = () => {
       const voices = this.synth!.getVoices();
-      // Chercher une voix française
-      this.voice = voices.find(v => v.lang.startsWith('fr')) || voices[0];
+      
+      // Noms de voix féminines communes (français et autres langues)
+      const femaleVoiceNames = [
+        'femme', 'female', 'woman', 'amélie', 'aurélie', 'thomas', 'zira', 
+        'hortense', 'helen', 'samantha', 'victoria', 'karen', 'susan', 
+        'monica', 'marisol', 'paulina', 'tessa', 'veena', 'fiona', 'siri',
+        'anna', 'melina', 'milena', 'maria', 'katya', 'alice', 'carmit',
+        'lisa', 'satu', 'yuna', 'yuri', 'damayanti', 'heami', 'sora',
+        'tian-tian', 'xiao', 'xiaoqian', 'xiaoyan', 'xiaoyu', 'hiujim',
+        'ting-ting', 'sinji', 'mei-jia', 'nora', 'ellen', 'nicole',
+        'celine', 'chantal', 'claire', 'sophie', 'isabelle', 'julie'
+      ];
+      
+      // Chercher une voix française féminine
+      const femaleVoices = voices.filter(v => {
+        if (!v.lang.startsWith('fr')) return false;
+        const nameLower = v.name.toLowerCase();
+        return femaleVoiceNames.some(femaleName => nameLower.includes(femaleName));
+      });
+      
+      // Si on trouve une voix féminine française, l'utiliser
+      if (femaleVoices.length > 0) {
+        this.voice = femaleVoices[0];
+        console.log('🎤 Voix féminine sélectionnée:', this.voice.name);
+      } else {
+        // Sinon, chercher n'importe quelle voix française
+        const frenchVoices = voices.filter(v => v.lang.startsWith('fr'));
+        if (frenchVoices.length > 0) {
+          this.voice = frenchVoices[0];
+          console.log('🎤 Voix française sélectionnée:', this.voice.name);
+        } else {
+          // Dernier recours : première voix disponible
+          this.voice = voices[0];
+          console.log('🎤 Voix par défaut sélectionnée:', this.voice?.name);
+        }
+      }
     };
     
     if (this.synth.getVoices().length > 0) {
@@ -249,8 +283,8 @@ export class NavigationVoice {
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    utterance.rate = 1.1; // Légèrement plus rapide
+    utterance.pitch = 1.2; // Pitch plus élevé pour voix féminine
     utterance.volume = 1.0;
     
     if (this.voice) {

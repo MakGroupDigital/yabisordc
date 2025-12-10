@@ -165,7 +165,39 @@ class NavigationVoice {
     if (!this.synth) return;
     const setVoice = () => {
       const voices = this.synth!.getVoices();
-      this.voice = voices.find(v => v.lang.startsWith('fr')) || voices[0];
+      
+      // Noms de voix féminines communes
+      const femaleVoiceNames = [
+        'femme', 'female', 'woman', 'amélie', 'aurélie', 'thomas', 'zira', 
+        'hortense', 'helen', 'samantha', 'victoria', 'karen', 'susan', 
+        'monica', 'marisol', 'paulina', 'tessa', 'veena', 'fiona', 'siri',
+        'anna', 'melina', 'milena', 'maria', 'katya', 'alice', 'carmit',
+        'lisa', 'satu', 'yuna', 'yuri', 'nora', 'ellen', 'nicole',
+        'celine', 'chantal', 'claire', 'sophie', 'isabelle', 'julie'
+      ];
+      
+      // Chercher une voix française féminine
+      const femaleVoices = voices.filter(v => {
+        if (!v.lang.startsWith('fr')) return false;
+        const nameLower = v.name.toLowerCase();
+        return femaleVoiceNames.some(femaleName => nameLower.includes(femaleName));
+      });
+      
+      // Si on trouve une voix féminine française, l'utiliser
+      if (femaleVoices.length > 0) {
+        this.voice = femaleVoices[0];
+        console.log('🎤 Voix féminine sélectionnée:', this.voice.name);
+      } else {
+        // Sinon, chercher n'importe quelle voix française
+        const frenchVoices = voices.filter(v => v.lang.startsWith('fr'));
+        if (frenchVoices.length > 0) {
+          this.voice = frenchVoices[0];
+          console.log('🎤 Voix française sélectionnée:', this.voice.name);
+        } else {
+          this.voice = voices[0];
+          console.log('🎤 Voix par défaut sélectionnée:', this.voice?.name);
+        }
+      }
     };
     if (this.synth.getVoices().length > 0) setVoice();
     else this.synth.onvoiceschanged = setVoice;
@@ -179,7 +211,9 @@ class NavigationVoice {
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
-    utterance.rate = 1.0;
+    utterance.rate = 1.1; // Légèrement plus rapide
+    utterance.pitch = 1.2; // Pitch plus élevé pour voix féminine
+    utterance.volume = 1.0;
     if (this.voice) utterance.voice = this.voice;
     
     this.synth.speak(utterance);

@@ -2,60 +2,60 @@
   "name": "Ya Biso RDC",
   "short_name": "Ya Biso",
   "description": "Découvrez la RDC - Restaurants, Hébergements, Sites Touristiques, Services et plus encore",
-  "start_url": "/",
+  "start_url": "https://yabiso-drc.com/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#FF8800",
   "orientation": "portrait",
-  "scope": "/",
+  "scope": "https://yabiso-drc.com/",
   "lang": "fr",
   "dir": "ltr",
   "categories": ["travel", "lifestyle", "social"],
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
+      "src": "https://yabiso-drc.com/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-96x96.png",
+      "src": "https://yabiso-drc.com/icons/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-128x128.png",
+      "src": "https://yabiso-drc.com/icons/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-144x144.png",
+      "src": "https://yabiso-drc.com/icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-152x152.png",
+      "src": "https://yabiso-drc.com/icons/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "https://yabiso-drc.com/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-384x384.png",
+      "src": "https://yabiso-drc.com/icons/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "https://yabiso-drc.com/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
@@ -63,18 +63,11 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshots/screenshot-1.png",
+      "src": "https://yabiso-drc.com/screenshots/screenshot-1.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Accueil Ya Biso RDC"
-    },
-    {
-      "src": "/screenshots/screenshot-2.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Explorer les catégories"
     }
   ],
   "shortcuts": [
@@ -82,22 +75,22 @@
       "name": "Explorer",
       "short_name": "Explorer",
       "description": "Découvrir les services",
-      "url": "/home/explorer",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "url": "https://yabiso-drc.com/home/explorer",
+      "icons": [{ "src": "https://yabiso-drc.com/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Restaurants",
       "short_name": "Restos",
       "description": "Trouver un restaurant",
-      "url": "/home/explorer/restauration",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "url": "https://yabiso-drc.com/home/explorer/restauration",
+      "icons": [{ "src": "https://yabiso-drc.com/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Urgences",
       "short_name": "Urgences",
       "description": "Services d'urgence",
-      "url": "/home/explorer/urgence-medicale",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "url": "https://yabiso-drc.com/home/explorer/urgence-medicale",
+      "icons": [{ "src": "https://yabiso-drc.com/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
   "related_applications": [],

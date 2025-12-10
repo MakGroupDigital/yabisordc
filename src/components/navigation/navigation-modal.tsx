@@ -410,10 +410,31 @@ export function NavigationModal({
         }
       },
       (error) => {
-        console.error('Erreur géolocalisation:', error);
+        let errorMessage = 'Impossible d\'obtenir votre position';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Accès à la localisation refusé. Veuillez autoriser l\'accès à votre position dans les paramètres de votre navigateur.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Position indisponible. Vérifiez que votre GPS est activé et que vous avez une bonne connexion.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Délai d\'attente dépassé. Veuillez réessayer.';
+            break;
+          default:
+            errorMessage = `Erreur: ${error.message || 'Impossible d\'obtenir votre position'}`;
+            break;
+        }
+        
+        console.error('Erreur géolocalisation:', {
+          code: error.code,
+          message: error.message,
+          errorMessage
+        });
+        
         toast({
           title: "Position requise",
-          description: "Veuillez autoriser l'accès à votre position",
+          description: errorMessage,
           variant: "destructive",
         });
         setIsLoadingLocation(false);
@@ -438,8 +459,36 @@ export function NavigationModal({
       (pos) => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
-      (error) => console.error('Erreur GPS:', error),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      (error) => {
+        let errorMessage = 'Erreur de géolocalisation';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Accès à la localisation refusé. Veuillez autoriser l\'accès dans les paramètres.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Position indisponible. Vérifiez votre connexion GPS.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Délai d\'attente dépassé pour obtenir la position.';
+            break;
+          default:
+            errorMessage = `Erreur GPS: ${error.message || 'Erreur inconnue'}`;
+            break;
+        }
+        
+        console.error('Erreur GPS:', {
+          code: error.code,
+          message: error.message,
+          errorMessage
+        });
+        
+        toast({
+          title: "Erreur de localisation",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
     toast({

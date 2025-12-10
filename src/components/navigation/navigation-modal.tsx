@@ -538,8 +538,6 @@ export function NavigationModal({
                       {routeData && (
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-blue-400 font-semibold">{formatDistance(routeData.distance)}</span>
-                          <span className="text-gray-500">•</span>
-                          <span className="text-gray-400">{formatDuration(routeData.duration)}</span>
                         </div>
                       )}
                     </div>
@@ -633,8 +631,6 @@ export function NavigationModal({
                 {routeData && (
                   <div className="flex items-center gap-3 text-sm">
                     <span className="text-blue-400">{formatDistance(routeData.distance)}</span>
-                    <span className="text-gray-500">•</span>
-                    <span className="text-gray-400">{formatDuration(routeData.duration)}</span>
                   </div>
                 )}
               </div>

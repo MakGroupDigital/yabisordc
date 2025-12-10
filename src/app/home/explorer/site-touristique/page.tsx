@@ -661,8 +661,6 @@ function SiteTouristiquePageContent() {
                     <h3 className="text-white font-bold">{navigationTarget.nom}</h3>
                     <div className="flex items-center gap-3 text-sm">
                       <span className="text-blue-400">{formatDistance(totalDistance)}</span>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-gray-400">{formatDuration(totalDuration)}</span>
                     </div>
                   </div>
                   <Button

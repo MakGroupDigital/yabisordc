@@ -906,7 +906,7 @@ function SiteTouristiquePageContent() {
       <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-20 pb-32">
         <div className="container mx-auto px-4 py-6 max-w-2xl space-y-4">
           {/* Barre de recherche */}
-          <Card className="bg-gray-900/50 border-gray-800">
+          <Card className="bg-gray-900/50 border-gray-800 relative z-10">
             <CardContent className="p-4 space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1 relative">
@@ -932,7 +932,7 @@ function SiteTouristiquePageContent() {
               <Button
                 onClick={requestLocationPermission}
                 variant="outline"
-                className="w-full border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
+                className="w-full border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800 relative z-20"
                 disabled={isRequestingLocation}
               >
                 {isRequestingLocation ? (
@@ -951,9 +951,9 @@ function SiteTouristiquePageContent() {
           </Card>
 
           {/* Carte interactive Leaflet */}
-          <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
+          <Card className="bg-gray-900/50 border-gray-800 overflow-hidden relative z-0">
             <CardContent className="p-0">
-              <div className="relative w-full h-[400px]">
+              <div className="relative w-full h-[400px] z-0">
                 <MapComponent
                   sites={searchQuery ? filteredSites : sitesTouristiques}
                   selectedSite={selectedSite}

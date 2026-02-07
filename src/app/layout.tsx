@@ -1,4 +1,4 @@
-import type {Metadata, Viewport} from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Toaster } from "@/components/ui/toaster";
 import { SoundProvider } from "@/contexts/sound-context";
@@ -77,7 +77,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${inter.variable} ${montserrat.variable} h-full bg-background`}>
+    <html lang="fr" className={`${inter.variable} ${montserrat.variable} h-full bg-background`} suppressHydrationWarning>
       <head>
         {/* PWA Meta Tags */}
         <meta name="application-name" content="Ya Biso RDC" />
@@ -90,7 +90,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
       </head>
-      <body className="font-body antialiased h-full">
+      <body className="font-body antialiased h-full" suppressHydrationWarning>
         {/* reCAPTCHA Enterprise pour Firebase Phone Authentication */}
         <Script
           src="https://www.google.com/recaptcha/enterprise.js?render=6LcmLSUsAAAAAOMudj7WEMUnOvHoRZo0JyORN3ia"

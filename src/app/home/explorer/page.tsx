@@ -4,32 +4,38 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { 
-  Hotel, 
-  Car, 
-  MapPin, 
-  Calendar, 
-  UtensilsCrossed, 
-  Compass, 
-  Package, 
-  Languages, 
-  Shield,
   Search,
   Star,
   MapPin as LocationIcon,
   ArrowRight,
-  Heart,
-  PartyPopper
+  TrendingUp,
+  Sparkles,
 } from 'lucide-react';
+import {
+  RestaurantIcon,
+  HebergementIcon,
+  MobiliteIcon,
+  SiteTouristiqueIcon,
+  SalleFeteIcon,
+  UrgenceMedicaleIcon,
+  EvenementsIcon,
+  SecuriteIcon,
+  TraducteurIcon,
+  LivreurIcon,
+  GuideTouristiqueIcon,
+} from '@/components/home/custom-icons';
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Category {
   id: string;
   name: string;
   icon: React.ElementType;
   route: string;
+  color: string;
+  gradient: string;
 }
 
 interface FeaturedItem {
@@ -44,72 +50,93 @@ interface FeaturedItem {
 }
 
 const categories: Category[] = [
-  // Ordre demandé par l'utilisateur
   {
     id: 'restauration',
     name: 'Restaurant',
-    icon: UtensilsCrossed,
-    route: '/home/explorer/restauration'
+    icon: RestaurantIcon,
+    route: '/home/explorer/restauration',
+    color: '#FF8800',
+    gradient: 'from-orange-500 to-orange-600'
   },
   {
     id: 'hebergement',
     name: 'Hébergement',
-    icon: Hotel,
-    route: '/home/explorer/hebergement'
+    icon: HebergementIcon,
+    route: '/home/explorer/hebergement',
+    color: '#003366',
+    gradient: 'from-blue-600 to-blue-700'
   },
   {
     id: 'mobilite',
     name: 'Mobilité',
-    icon: Car,
-    route: '/home/explorer/mobilite'
+    icon: MobiliteIcon,
+    route: '/home/explorer/mobilite',
+    color: '#FFCC00',
+    gradient: 'from-yellow-400 to-yellow-500'
   },
   {
     id: 'site-touristique',
     name: 'Site touristique',
-    icon: MapPin,
-    route: '/home/explorer/site-touristique'
+    icon: SiteTouristiqueIcon,
+    route: '/home/explorer/site-touristique',
+    color: '#10B981',
+    gradient: 'from-emerald-500 to-emerald-600'
   },
   {
     id: 'salle-fete-jeux',
     name: 'Salle de fête',
-    icon: PartyPopper,
-    route: '/home/explorer/salle-fete-jeux'
+    icon: SalleFeteIcon,
+    route: '/home/explorer/salle-fete-jeux',
+    color: '#EC4899',
+    gradient: 'from-pink-500 to-pink-600'
   },
   {
     id: 'urgence-medicale',
     name: 'Urgence Médicale',
-    icon: Heart,
-    route: '/home/explorer/urgence-medicale'
+    icon: UrgenceMedicaleIcon,
+    route: '/home/explorer/urgence-medicale',
+    color: '#EF4444',
+    gradient: 'from-red-500 to-red-600'
   },
   {
     id: 'evenements',
     name: 'Événements',
-    icon: Calendar,
-    route: '/home/explorer/evenements'
+    icon: EvenementsIcon,
+    route: '/home/explorer/evenements',
+    color: '#8B5CF6',
+    gradient: 'from-violet-500 to-violet-600'
   },
   {
     id: 'securite',
     name: 'Sécurité',
-    icon: Shield,
-    route: '/home/explorer/securite'
+    icon: SecuriteIcon,
+    route: '/home/explorer/securite',
+    color: '#3B82F6',
+    gradient: 'from-blue-500 to-blue-600'
   },
   {
     id: 'traducteur',
     name: 'Traducteur',
-    icon: Languages,
-    route: '/home/explorer/traducteur'
+    icon: TraducteurIcon,
+    route: '/home/explorer/traducteur',
+    color: '#06B6D4',
+    gradient: 'from-cyan-500 to-cyan-600'
   },
   {
     id: 'livreur',
     name: 'Livreur',
-    icon: Package,
-    route: '/home/explorer/livreur'
+    icon: LivreurIcon,
+    route: '/home/explorer/livreur',
+    color: '#F59E0B',
+    gradient: 'from-amber-500 to-amber-600'
   },
   {
     id: 'guide-touristique',
     name: 'Guide touristique',
-    icon: Compass,
-    route: '/home/explorer/guide-touristique'
+    icon: GuideTouristiqueIcon,
+    route: '/home/explorer/guide-touristique',
+    color: '#14B8A6',
+    gradient: 'from-teal-500 to-teal-600'
   },
 ];
 
@@ -170,6 +197,7 @@ export default function ExplorerPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleCategoryClick = (route: string) => {
@@ -180,7 +208,7 @@ export default function ExplorerPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredItems.length);
-    }, 4000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -202,33 +230,99 @@ export default function ExplorerPage() {
   );
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-black/90 backdrop-blur-md border-b border-gray-800">
+    <div className="relative h-screen w-full overflow-hidden bg-gradient-to-b from-black via-gray-950 to-black">
+      {/* Header avec effet glassmorphism */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-black/40 backdrop-blur-xl border-b border-white/5">
         <div className="container mx-auto px-4 py-4 max-w-2xl">
-          <h1 className="text-2xl font-bold text-white mb-3">Explorer</h1>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          {/* Titre avec animation */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between mb-4"
+          >
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                Explorer
+              </h1>
+              <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#FFCC00]" />
+                Découvrez les meilleurs services
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF8800]/20 to-[#FFCC00]/20 border border-[#FF8800]/30">
+              <TrendingUp className="h-4 w-4 text-[#FF8800]" />
+              <span className="text-xs font-semibold text-white">Populaire</span>
+            </div>
+          </motion.div>
+
+          {/* Barre de recherche moderne */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="relative"
+          >
+            <Search className={cn(
+              "absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 transition-colors duration-200",
+              isSearchFocused ? "text-[#FF8800]" : "text-gray-400"
+            )} />
             <Input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Rechercher un service..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-900/80 border-gray-700 text-white placeholder:text-gray-400 focus:border-[#FF8800] h-11"
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              className="pl-12 pr-4 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-[#FF8800]/50 rounded-2xl transition-all duration-200 backdrop-blur-sm"
             />
-          </div>
+            {searchQuery && (
+              <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                ✕
+              </motion.button>
+            )}
+          </motion.div>
         </div>
       </div>
 
       {/* Contenu scrollable */}
-      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-28 pb-32">
-        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-6">
-          {/* Carrousel de panneaux publicitaires */}
-          <div className="relative">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <Star className="h-5 w-5 text-[#FF8800]" fill="#FF8800" />
-              Au Top
-            </h2>
+      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-32 pb-32">
+        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-8">
+          
+          {/* Carrousel publicitaire premium */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="relative"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-gradient-to-br from-[#FF8800] to-[#FFCC00]">
+                  <Star className="h-4 w-4 text-white" fill="white" />
+                </div>
+                À la Une
+              </h2>
+              <div className="flex gap-1.5">
+                {featuredItems.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all duration-300",
+                      currentIndex === index 
+                        ? "w-8 bg-gradient-to-r from-[#FF8800] to-[#FFCC00]" 
+                        : "w-1.5 bg-white/20 hover:bg-white/40"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+
             <div 
               ref={scrollRef}
               className="flex gap-4 overflow-x-scroll scrollbar-hide snap-x snap-mandatory scroll-smooth"
@@ -240,107 +334,158 @@ export default function ExplorerPage() {
                   initial={{ opacity: 0, x: 50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="relative min-w-[280px] h-[200px] rounded-2xl overflow-hidden snap-start cursor-pointer group"
+                  className="relative min-w-[320px] h-[220px] rounded-3xl overflow-hidden snap-start cursor-pointer group"
                   onClick={() => {
-                    // Navigation selon le type
                     if (item.type === 'lieu') router.push('/home/explorer/site-touristique');
                     else if (item.type === 'evenement') router.push('/home/explorer/evenements');
                     else if (item.type === 'hebergement') router.push('/home/explorer/hebergement');
                     else if (item.type === 'restaurant') router.push('/home/explorer/restauration');
                   }}
                 >
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Star className="h-4 w-4 text-[#FFCC00]" fill="#FFCC00" />
-                      <span className="text-sm font-semibold">{item.rating}</span>
+                  {/* Image avec effet parallax */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <Image
+                      src={item.image}
+                      alt={item.title}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  </div>
+
+                  {/* Overlay gradient premium */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                  
+                  {/* Badge rating flottant */}
+                  <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+                    <Star className="h-3.5 w-3.5 text-[#FFCC00]" fill="#FFCC00" />
+                    <span className="text-sm font-bold text-white">{item.rating}</span>
+                  </div>
+
+                  {/* Bouton action */}
+                  <div className="absolute top-4 right-4">
+                    <div className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-110">
+                      <ArrowRight className="h-4 w-4 text-white" />
                     </div>
-                    <h3 className="font-bold text-lg mb-1">{item.title}</h3>
-                    <p className="text-sm text-gray-300 mb-2">{item.subtitle}</p>
+                  </div>
+
+                  {/* Contenu */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                    <h3 className="font-bold text-xl mb-1.5 line-clamp-1">{item.title}</h3>
+                    <p className="text-sm text-gray-300 mb-3 line-clamp-1">{item.subtitle}</p>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <LocationIcon className="h-3 w-3" />
+                      <div className="flex items-center gap-1.5 text-xs text-gray-300">
+                        <LocationIcon className="h-3.5 w-3.5" />
                         <span>{item.location}</span>
                       </div>
                       {item.price && (
-                        <span className="text-sm font-semibold text-[#FF8800]">{item.price}</span>
+                        <span className="text-sm font-bold bg-gradient-to-r from-[#FF8800] to-[#FFCC00] bg-clip-text text-transparent">
+                          {item.price}
+                        </span>
                       )}
-                    </div>
-                  </div>
-                  <div className="absolute top-3 right-3">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ArrowRight className="h-4 w-4 text-white" />
                     </div>
                   </div>
                 </motion.div>
               ))}
             </div>
-            {/* Indicateurs de pagination */}
-            <div className="flex justify-center gap-2 mt-3">
-              {featuredItems.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentIndex(index)}
-                  className={cn(
-                    "h-2 rounded-full transition-all duration-300",
-                    currentIndex === index ? "w-8 bg-[#FF8800]" : "w-2 bg-gray-600"
-                  )}
-                />
-              ))}
-            </div>
-          </div>
+          </motion.div>
 
-          {/* Section Catégories */}
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-4">Catégories</h2>
-            <div className="grid grid-cols-2 gap-3">
+          {/* Section Catégories avec design moderne */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Catégories</h2>
+              <span className="text-xs text-gray-400">{filteredCategories.length} services</span>
+            </div>
+
+            <AnimatePresence mode="wait">
               {filteredCategories.length === 0 ? (
-                <div className="col-span-2 flex items-center justify-center py-12">
-                  <div className="text-white text-center">
-                    <p className="text-lg mb-2">Aucune catégorie trouvée</p>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-center py-16"
+                >
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                      <Search className="h-8 w-8 text-gray-600" />
+                    </div>
+                    <p className="text-lg text-white mb-2">Aucun résultat</p>
                     <p className="text-sm text-gray-400">Essayez avec d'autres mots-clés</p>
                   </div>
-                </div>
+                </motion.div>
               ) : (
-                filteredCategories.map((category, index) => {
-                  const Icon = category.icon;
-                  return (
-                    <motion.div
-                      key={category.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={cn(
-                        "cursor-pointer transition-all duration-200 active:scale-95",
-                        "bg-gradient-to-br from-gray-900/90 to-gray-800/50 border border-gray-700/50 rounded-2xl",
-                        "p-5 flex flex-col items-center justify-center gap-3 min-h-[130px]",
-                        "hover:bg-gradient-to-br hover:from-[#FF8800]/20 hover:to-[#FF8800]/10",
-                        "hover:border-[#FF8800]/50 hover:shadow-lg hover:shadow-[#FF8800]/20"
-                      )}
-                      onClick={() => handleCategoryClick(category.route)}
-                    >
-                      <div className="p-3 rounded-xl bg-gradient-to-br from-[#FF8800]/30 to-[#FF8800]/10 group-hover:from-[#FF8800]/40 group-hover:to-[#FF8800]/20 transition-all">
-                        <Icon className="h-7 w-7 text-[#FF8800]" />
-                      </div>
-                      <h3 className="text-white font-semibold text-center text-sm">
-                        {category.name}
-                      </h3>
-                    </motion.div>
-                  );
-                })
+                <div className="grid grid-cols-2 gap-4">
+                  {filteredCategories.map((category, index) => {
+                    const Icon = category.icon;
+                    return (
+                      <motion.div
+                        key={category.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="group cursor-pointer"
+                        onClick={() => handleCategoryClick(category.route)}
+                      >
+                        <div className={cn(
+                          "relative overflow-hidden rounded-3xl p-5 min-h-[150px]",
+                          "bg-gradient-to-br",
+                          category.gradient,
+                          "shadow-lg",
+                          "transition-all duration-300",
+                          "hover:scale-105 hover:shadow-2xl",
+                          "active:scale-95"
+                        )}
+                        style={{
+                          boxShadow: `0 10px 30px ${category.color}40`
+                        }}>
+                          {/* Effet de brillance */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                          {/* Pattern de fond */}
+                          <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-white rounded-full blur-3xl" />
+                            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full blur-2xl" />
+                          </div>
+
+                          {/* Contenu */}
+                          <div className="relative z-10 flex flex-col items-center justify-center h-full gap-4">
+                            {/* Icône avec fond blanc */}
+                            <div className="p-4 rounded-2xl bg-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                              <Icon 
+                                className="h-10 w-10 transition-transform duration-300" 
+                                style={{ color: category.color }}
+                              />
+                            </div>
+
+                            {/* Nom */}
+                            <h3 className="text-white font-bold text-center text-sm leading-tight drop-shadow-lg">
+                              {category.name}
+                            </h3>
+                          </div>
+
+                          {/* Indicateur de clic */}
+                          <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-1">
+                            <div className="p-1.5 rounded-full bg-white/30 backdrop-blur-sm">
+                              <ArrowRight className="h-3.5 w-3.5 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               )}
-            </div>
-          </div>
+            </AnimatePresence>
+          </motion.div>
         </div>
       </div>
       
-      {/* Bottom Nav - Fixé en bas */}
+      {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="pointer-events-auto">
           <BottomNav />
@@ -349,4 +494,3 @@ export default function ExplorerPage() {
     </div>
   );
 }
-

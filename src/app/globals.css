@@ -1,0 +1,311 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet CSS - Import global pour éviter les problèmes SSR */
+@import 'leaflet/dist/leaflet.css';
+@import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+@import 'leaflet.fullscreen/dist/Control.FullScreen.css';
+
+@keyframes heart-float {
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -150%) scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -250%) scale(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-heart-float {
+  animation: heart-float 1s ease-out forwards;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 96%; /* Blanc Cassé #F5F5F5 */
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    
+    /* Ya Biso Palette */
+    --primary: 32 100% 50%; /* Orange Ya Biso #FF8800 */
+    --primary-foreground: 20 14.3% 4.1%; /* Dark for contrast */
+
+    --secondary: 210 100% 20%; /* Bleu Congo #003366 */
+    --secondary-foreground: 210 40% 98%; /* Light for contrast */
+
+    --accent: 48 100% 50%; /* Or Minéral #FFCC00 */
+    --accent-foreground: 48 9.8% 10%; /* Dark for contrast */
+    
+    --nature: 150 50% 40%; /* Vert Virunga #339966 */
+    --nature-foreground: 0 0% 100%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 0 0% 33%; /* Gris Moyen #555555 */
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 32 100% 50%; /* Orange for focus rings */
+
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.75rem; /* rounded-xl */
+    
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Ya Biso Palette */
+    --primary: 32 100% 50%; /* Orange Ya Biso #FF8800 */
+    --primary-foreground: 20 14.3% 4.1%; /* Dark for contrast */
+    
+    --secondary: 210 100% 20%; /* Bleu Congo #003366 */
+    --secondary-foreground: 210 40% 98%; /* Light for contrast */
+    
+    --accent: 48 100% 50%; /* Or Minéral #FFCC00 */
+    --accent-foreground: 48 9.8% 10%; /* Dark for contrast */
+
+    --nature: 150 50% 40%; /* Vert Virunga #339966 */
+    --nature-foreground: 0 0% 100%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 32 100% 50%; /* Orange for focus rings */
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Animation de rotation lente pour le loader */
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 2s linear infinite;
+  }
+
+  /* Animation de rebond pour les points de chargement */
+  @keyframes bounce-dot {
+    0%, 100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    50% {
+      transform: translateY(-10px);
+      opacity: 0.7;
+    }
+  }
+
+  .animate-bounce-dot {
+    animation: bounce-dot 1.4s ease-in-out infinite;
+  }
+
+  /* Animation de gradient pour le texte */
+  @keyframes gradient {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-gradient {
+    background-size: 200% auto;
+    animation: gradient 3s ease infinite;
+  }
+}
+
+/* Fix z-index pour Leaflet - limiter le z-index de la carte */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
+
+.leaflet-pane {
+  z-index: 1;
+}
+
+.leaflet-map-pane {
+  z-index: 1;
+}
+
+.leaflet-tile-pane {
+  z-index: 2;
+}
+
+.leaflet-overlay-pane {
+  z-index: 3;
+}
+
+.leaflet-shadow-pane {
+  z-index: 4;
+}
+
+.leaflet-marker-pane {
+  z-index: 5;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 6;
+}
+
+.leaflet-popup-pane {
+  z-index: 7;
+}
+
+.leaflet-control {
+  z-index: 8;
+}
+
+/* S'assurer que les éléments au-dessus de la carte sont cliquables */
+.relative.z-10,
+.relative.z-20 {
+  position: relative;
+}
+
+/* Harmonisation visuelle globale pour les pages /home */
+.home-unified .bg-black {
+  background-color: #f5f8fd !important;
+}
+
+.home-unified .bg-black\/95,
+.home-unified .bg-black\/90,
+.home-unified .bg-black\/80,
+.home-unified .bg-black\/60 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 51, 102, 0.12) !important;
+}
+
+.home-unified .from-black {
+  --tw-gradient-from: #f5f8fd var(--tw-gradient-from-position) !important;
+}
+
+.home-unified .via-gray-900 {
+  --tw-gradient-via: #eaf2ff var(--tw-gradient-via-position) !important;
+}
+
+.home-unified .to-black {
+  --tw-gradient-to: #f5f8fd var(--tw-gradient-to-position) !important;
+}
+
+.home-unified .bg-gray-900,
+.home-unified .bg-gray-900\/50,
+.home-unified .bg-gray-800,
+.home-unified .bg-gray-800\/50 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 51, 102, 0.12) !important;
+}
+
+.home-unified .border-gray-800,
+.home-unified .border-gray-700 {
+  border-color: rgba(0, 51, 102, 0.15) !important;
+}
+
+.home-unified .bg-black .text-white,
+.home-unified .bg-black\/95 .text-white,
+.home-unified .bg-black\/90 .text-white,
+.home-unified .bg-black\/80 .text-white,
+.home-unified .bg-gray-900 .text-white,
+.home-unified .bg-gray-900\/50 .text-white,
+.home-unified .bg-gray-800 .text-white,
+.home-unified .bg-gray-800\/50 .text-white {
+  color: #0f172a !important;
+}
+
+.home-unified .text-gray-400,
+.home-unified .text-gray-500 {
+  color: #64748b !important;
+}
+
+.home-unified .hover\:bg-gray-800:hover,
+.home-unified .hover\:bg-gray-700:hover {
+  background-color: #eaf2ff !important;
+}
+
+.home-unified .bg-blue-600 {
+  background-color: #003366 !important;
+}
+
+.home-unified .hover\:bg-blue-700:hover {
+  background-color: #014a8a !important;
+}
+
+.home-unified .bg-red-600 {
+  background-color: #ff8800 !important;
+}
+
+.home-unified .hover\:bg-red-700:hover,
+.home-unified .hover\:bg-\[\#FF8800\]\/90:hover {
+  background-color: #e67800 !important;
+}

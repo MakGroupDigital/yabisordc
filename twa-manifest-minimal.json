@@ -1,0 +1,17 @@
+{
+  "packageId": "com.yabiso.rdc",
+  "host": "yabiso-drc.com",
+  "name": "Ya Biso RDC",
+  "launcherName": "Ya Biso",
+  "display": "standalone",
+  "themeColor": "#FF8800",
+  "backgroundColor": "#000000",
+  "startUrl": "/",
+  "iconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "webManifestUrl": "https://yabiso-drc.com/manifest.json",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 21,
+  "orientation": "portrait"
+}
+

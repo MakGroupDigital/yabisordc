@@ -1,0 +1,83 @@
+{
+  "packageId": "com.yabiso.rdc",
+  "host": "yabiso-drc.com",
+  "name": "Ya Biso RDC",
+  "launcherName": "Ya Biso",
+  "display": "standalone",
+  "themeColor": "#FF8800",
+  "themeColorDark": "#FF6600",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#1a1a1a",
+  "navigationDividerColorDark": "#1a1a1a",
+  "backgroundColor": "#000000",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "maskableIconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "monochromeIconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android-signing/yabiso-release.keystore",
+    "alias": "yabiso"
+  },
+  "appVersion": "1.1.0",
+  "appVersionCode": 2,
+  "shortcuts": [
+    {
+      "name": "Explorer",
+      "shortName": "Explorer",
+      "url": "/home/explorer",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Restaurants",
+      "shortName": "Restos",
+      "url": "/home/explorer/restauration",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Urgences",
+      "shortName": "Urgences",
+      "url": "/home/explorer/urgence-medicale",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "generatorApp": "PWABuilder",
+  "webManifestUrl": "https://yabiso-drc.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": true,
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": []
+}
+

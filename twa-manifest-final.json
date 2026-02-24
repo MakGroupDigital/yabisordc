@@ -1,0 +1,52 @@
+{
+  "packageId": "com.yabiso.rdc",
+  "host": "yabiso-drc.com",
+  "name": "Ya Biso RDC",
+  "launcherName": "Ya Biso",
+  "display": "standalone",
+  "themeColor": "#FF8800",
+  "backgroundColor": "#000000",
+  "startUrl": "https://yabiso-drc.com/",
+  "iconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "maskableIconUrl": "https://yabiso-drc.com/icons/icon-512x512.png",
+  "webManifestUrl": "https://yabiso-drc.com/manifest.json",
+  "appVersion": "1.1.0",
+  "appVersionCode": 2,
+  "shortcuts": [
+    {
+      "name": "Explorer",
+      "shortName": "Explorer",
+      "url": "https://yabiso-drc.com/home/explorer",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Restaurants",
+      "shortName": "Restos",
+      "url": "https://yabiso-drc.com/home/explorer/restauration",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Urgences",
+      "shortName": "Urgences",
+      "url": "https://yabiso-drc.com/home/explorer/urgence-medicale",
+      "icons": [
+        {
+          "src": "https://yabiso-drc.com/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "minSdkVersion": 21,
+  "orientation": "portrait"
+}

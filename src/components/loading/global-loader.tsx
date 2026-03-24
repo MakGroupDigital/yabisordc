@@ -1,33 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 
 export function GlobalLoader() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const pathname = usePathname();
 
   useEffect(() => {
-    // Détecter le chargement initial
-    if (isInitialLoad) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        setIsInitialLoad(false);
-      }, 1500); // Afficher pendant 1.5 secondes minimum
-      return () => clearTimeout(timer);
-    }
-  }, [isInitialLoad]);
-
-  useEffect(() => {
-    // Afficher le loader lors du changement de route
-    setIsLoading(true);
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 800); // Afficher pendant 0.8 secondes lors du changement de route
+    }, 1500);
+
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, []);
 
   if (!isLoading) return null;
 
@@ -74,4 +59,3 @@ export function GlobalLoader() {
     </div>
   );
 }
-

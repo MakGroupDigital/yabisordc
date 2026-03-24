@@ -7,7 +7,7 @@ import { LocationPermissionModal } from './location-permission-modal';
 import { cn } from '@/lib/utils';
 
 export function LocationDisplay() {
-  const { location, loading, error, hasPermission, requestLocation, clearLocation } =
+  const { location, loading, error, hasPermission, requestLocation } =
     useGeolocation();
   const [showModal, setShowModal] = useState(false);
   const [displayText, setDisplayText] = useState('Paris, France');
@@ -19,11 +19,19 @@ export function LocationDisplay() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (hasPermission === true && !location && !loading) {
+      requestLocation();
+    }
+  }, [hasPermission, location, loading, requestLocation]);
+
   const handleLocationClick = () => {
-    if (location) {
-      // Si on a déjà une localisation, afficher un menu pour changer
-      setShowModal(true);
-    } else if (hasPermission === false) {
+    if (hasPermission === true) {
+      requestLocation();
+      return;
+    }
+
+    if (hasPermission === false) {
       // Si la permission a été refusée, montrer le modal
       setShowModal(true);
     } else {
@@ -34,7 +42,6 @@ export function LocationDisplay() {
 
   const handleConfirm = () => {
     requestLocation();
-    // Garder le modal ouvert pendant le chargement
   };
 
   const handleCancel = () => {
@@ -52,13 +59,13 @@ export function LocationDisplay() {
     <>
       <button
         onClick={handleLocationClick}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors group"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all group"
       >
-        <MapPin className="h-5 w-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-        <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors font-medium">
+        <MapPin className="h-4 w-4 text-white group-hover:text-white transition-colors" />
+        <span className="text-sm text-white font-medium">
           {displayText}
         </span>
-        <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+        <ChevronDown className="h-3 w-3 text-white/70 group-hover:text-white transition-colors" />
       </button>
 
       <LocationPermissionModal

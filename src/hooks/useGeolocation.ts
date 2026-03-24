@@ -31,16 +31,68 @@ export function useGeolocation() {
     const storedLocation = localStorage.getItem(STORAGE_KEY);
     const permissionGranted = localStorage.getItem(PERMISSION_KEY);
 
+    setState((prev) => ({
+      ...prev,
+      hasPermission:
+        permissionGranted === 'true'
+          ? true
+          : permissionGranted === 'false'
+            ? false
+            : null,
+    }));
+
     if (storedLocation) {
       try {
         setState((prev) => ({
           ...prev,
           location: JSON.parse(storedLocation),
-          hasPermission: permissionGranted === 'true',
         }));
       } catch (e) {
         console.error('Erreur lors du chargement de la localisation stockée:', e);
       }
+    }
+
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((result) => {
+          const granted = result.state === 'granted' ? 'true' : result.state === 'denied' ? 'false' : null;
+
+          if (granted) {
+            localStorage.setItem(PERMISSION_KEY, granted);
+          }
+
+          setState((prev) => ({
+            ...prev,
+            hasPermission:
+              result.state === 'granted'
+                ? true
+                : result.state === 'denied'
+                  ? false
+                  : prev.hasPermission,
+          }));
+
+          result.onchange = () => {
+            const nextGranted = result.state === 'granted' ? 'true' : result.state === 'denied' ? 'false' : null;
+
+            if (nextGranted) {
+              localStorage.setItem(PERMISSION_KEY, nextGranted);
+            }
+
+            setState((prev) => ({
+              ...prev,
+              hasPermission:
+                result.state === 'granted'
+                  ? true
+                  : result.state === 'denied'
+                    ? false
+                    : prev.hasPermission,
+            }));
+          };
+        })
+        .catch(() => {
+          // Certains navigateurs ne supportent pas correctement Permissions API.
+        });
     }
   }, []);
 
@@ -128,7 +180,7 @@ export function useGeolocation() {
           ...prev,
           loading: false,
           error: errorMessage,
-          hasPermission: false,
+          hasPermission: error.code === error.PERMISSION_DENIED ? false : prev.hasPermission,
         }));
       },
       {

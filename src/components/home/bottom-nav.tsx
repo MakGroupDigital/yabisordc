@@ -1,5 +1,6 @@
 'use client';
 
+import { startTransition, useEffect } from 'react';
 import { Heart, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -82,27 +83,34 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
 
+  useEffect(() => {
+    navItems.forEach((item) => router.prefetch(item.path));
+  }, [router]);
+
   const handleNavigation = (path: string) => {
-    router.push(path);
+    router.prefetch(path);
+    startTransition(() => {
+      router.push(path);
+    });
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-[#003366]/95 via-[#003366]/80 to-transparent backdrop-blur-md md:hidden pointer-events-none">
-      <div className="container mx-auto flex h-20 max-w-2xl items-center justify-around px-0 pt-2 pointer-events-auto">
+    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center px-3 pb-3">
+      <div className="pointer-events-auto flex h-20 w-full max-w-2xl items-center justify-around rounded-[28px] border border-[#003366]/12 bg-[#003366] px-2 pt-2 shadow-[0_24px_60px_-28px_rgba(0,51,102,0.55)] md:h-[74px] md:max-w-3xl md:rounded-full md:px-4">
         {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path || (item.path === '/home/explorer' && (pathname === '/home' || pathname === '/home/explorer'));
             
             return (
                 <div key={item.name} className="relative flex flex-col items-center flex-1">
-                    {isActive && <div className="absolute -top-1 h-1 w-5 rounded-full bg-[#FFCC00]" />}
+                    {isActive && <div className="absolute -top-1 h-1 w-5 rounded-full bg-[#FFCC00] md:-top-2" />}
                     <Button 
                         variant="ghost" 
-                        className="h-auto flex-col gap-0.5 p-1.5 font-medium text-xs text-white/80 hover:text-white w-full"
+                        className="h-auto w-full flex-col gap-0.5 p-1.5 text-xs font-medium text-white/80 hover:bg-transparent hover:text-white md:flex-row md:justify-center md:gap-2 md:rounded-full md:px-3"
                         onClick={() => handleNavigation(item.path)}
                     >
                       <Icon className={cn("h-5 w-5", isActive && "text-white")} />
-                      <span className={cn("text-xs leading-tight", isActive && "text-white")}>{item.name}</span>
+                      <span className={cn("text-xs leading-tight md:text-sm", isActive && "text-white")}>{item.name}</span>
                     </Button>
                 </div>
             )

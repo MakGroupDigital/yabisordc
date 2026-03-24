@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
+import { SafeImage } from "@/components/ui/safe-image";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NavigationModal, NavigationDestination } from '@/components/navigation/navigation-modal';
 import { shareItem, clearSharedItem } from '@/lib/share-utils';
+import { SearchWithFilters } from "@/components/home/search-with-filters";
 
 interface Restaurant {
   id: string;
@@ -156,11 +157,11 @@ const restaurants: Restaurant[] = [
   },
 ];
 
-const villes = ['Toutes', 'Kinshasa', 'Lubumbashi', 'Goma', 'Kisangani'];
+const villes = ['Toutes', 'Kinshasa', 'Lubumbashi', 'Goma', 'Kisangani', 'Bukavu', 'Mbuji-Mayi', 'Kananga', 'Matadi'];
 export const dynamic = 'force-dynamic';
 
-const provinces = ['Toutes', 'Kinshasa', 'Haut-Katanga', 'Nord-Kivu', 'Tshopo'];
-const cuisines = ['Toutes', 'Congolaise', 'Mixte', 'Italienne', 'Française'];
+const provinces = ['Toutes', 'Kinshasa', 'Haut-Katanga', 'Nord-Kivu', 'Tshopo', 'Sud-Kivu', 'Kasaï-Oriental', 'Kasaï-Central', 'Kongo-Central'];
+const cuisines = ['Toutes', 'Congolaise', 'Mixte', 'Italienne', 'Française', 'Chinoise', 'Indienne', 'Libanaise'];
 
 function RestaurationPageContent() {
   const router = useRouter();
@@ -174,6 +175,7 @@ function RestaurationPageContent() {
     ville: 'Toutes',
     province: 'Toutes',
   });
+  const [locationFilter, setLocationFilter] = useState<any>(null);
   const [currentImages, setCurrentImages] = useState<Record<string, number>>({});
   const [isScrolling, setIsScrolling] = useState<Record<string, boolean>>({});
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -285,7 +287,20 @@ function RestaurationPageContent() {
     const matchesVille = filters.ville === 'Toutes' || restaurant.ville === filters.ville;
     const matchesProvince = filters.province === 'Toutes' || restaurant.province === filters.province;
 
-    return matchesSearch && matchesLivre && matchesCuisine && matchesVille && matchesProvince;
+    // Filtrage par localisation sélectionnée
+    let matchesLocationFilter = true;
+    if (locationFilter) {
+      if (locationFilter.type === 'province') {
+        matchesLocationFilter = restaurant.province === locationFilter.name;
+      } else if (locationFilter.type === 'ville') {
+        matchesLocationFilter = restaurant.ville === locationFilter.name;
+      } else if (locationFilter.type === 'territoire') {
+        // Pour les territoires, on peut filtrer par province parent
+        matchesLocationFilter = restaurant.province === locationFilter.province;
+      }
+    }
+
+    return matchesSearch && matchesLivre && matchesCuisine && matchesVille && matchesProvince && matchesLocationFilter;
   });
 
   const resetFilters = () => {
@@ -476,12 +491,12 @@ function RestaurationPageContent() {
             </Sheet>
           </div>
           <div className="mt-3">
-            <Input
-              type="text"
-              placeholder="Rechercher un restaurant..."
+            <SearchWithFilters
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              onChange={setSearchQuery}
+              onLocationFilter={setLocationFilter}
+              placeholder="Rechercher un restaurant..."
+              className="w-full"
             />
           </div>
         </div>

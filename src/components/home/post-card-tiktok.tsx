@@ -16,7 +16,7 @@ import {
     Send,
     Eye,
 } from 'lucide-react';
-import { useState, useRef, useEffect, useMemo, memo } from 'react';
+import { startTransition, useState, useRef, useEffect, useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -226,8 +226,25 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 description: "Connectez-vous pour aimer des publications",
                 variant: "destructive",
             });
-            router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+            startTransition(() => {
+                router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+            });
             return;
+        }
+
+        const previousLiked = isLiked;
+        const previousCount = likeCount;
+        const nextLiked = !previousLiked;
+        const nextCount = Math.max(0, previousCount + (nextLiked ? 1 : -1));
+
+        setIsLiked(nextLiked);
+        setLikeCount(nextCount);
+
+        if (nextLiked) {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (rect) {
+                createHeart(rect.width / 2, rect.height / 2);
+            }
         }
 
         if (isLiked) {
@@ -238,11 +255,10 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 
                 // Mettre à jour le compteur
                 const postRef = doc(db, 'posts', post.id);
-                await setDoc(postRef, { likes: likeCount - 1 }, { merge: true });
-                
-                setIsLiked(false);
-                setLikeCount(prev => prev - 1);
+                await setDoc(postRef, { likes: nextCount }, { merge: true });
             } catch (error: any) {
+                setIsLiked(previousLiked);
+                setLikeCount(previousCount);
                 console.error('Erreur retrait like:', error);
                 if (error.code === 'permission-denied') {
                     toast({
@@ -263,17 +279,10 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
 
                 // Mettre à jour le compteur
                 const postRef = doc(db, 'posts', post.id);
-                await setDoc(postRef, { likes: likeCount + 1 }, { merge: true });
-
-                setIsLiked(true);
-                setLikeCount(prev => prev + 1);
-
-                // Animation de cœurs
-                const rect = containerRef.current?.getBoundingClientRect();
-                if (rect) {
-                    createHeart(rect.width / 2, rect.height / 2);
-                }
+                await setDoc(postRef, { likes: nextCount }, { merge: true });
             } catch (error: any) {
+                setIsLiked(previousLiked);
+                setLikeCount(previousCount);
                 console.error('Erreur ajout like:', error);
                 if (error.code === 'permission-denied') {
                     toast({
@@ -294,21 +303,29 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 description: "Connectez-vous pour sauvegarder des publications",
                 variant: "destructive",
             });
-            router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+            startTransition(() => {
+                router.push(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+            });
             return;
         }
+
+        const previousBookmarked = isBookmarked;
+        const previousFavoritesCount = favoritesCount;
+        const nextBookmarked = !previousBookmarked;
+        const nextFavoritesCount = Math.max(0, previousFavoritesCount + (nextBookmarked ? 1 : -1));
+
+        setIsBookmarked(nextBookmarked);
+        setFavoritesCount(nextFavoritesCount);
 
         try {
             const favoriteRef = doc(db, 'favorites', `${user.uid}_${post.id}`);
             
             if (isBookmarked) {
                 await deleteDoc(favoriteRef);
-                setIsBookmarked(false);
                 
                 // Mettre à jour le compteur de favoris
                 const postRef = doc(db, 'posts', post.id);
-                await setDoc(postRef, { favorites: Math.max(0, favoritesCount - 1) }, { merge: true });
-                setFavoritesCount(prev => Math.max(0, prev - 1));
+                await setDoc(postRef, { favorites: nextFavoritesCount }, { merge: true });
                 
                 toast({
                     title: "Retiré des favoris",
@@ -320,12 +337,10 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                     postId: post.id,
                     createdAt: serverTimestamp(),
                 });
-                setIsBookmarked(true);
                 
                 // Mettre à jour le compteur de favoris
                 const postRef = doc(db, 'posts', post.id);
-                await setDoc(postRef, { favorites: favoritesCount + 1 }, { merge: true });
-                setFavoritesCount(prev => prev + 1);
+                await setDoc(postRef, { favorites: nextFavoritesCount }, { merge: true });
                 
                 toast({
                     title: "Ajouté aux favoris",
@@ -333,6 +348,8 @@ export const PostCardTikTok = memo(function PostCardTikTok({ post }: PostCardTik
                 });
             }
         } catch (error: any) {
+            setIsBookmarked(previousBookmarked);
+            setFavoritesCount(previousFavoritesCount);
             console.error('Erreur bookmark:', error);
             if (error.code === 'permission-denied') {
                 toast({

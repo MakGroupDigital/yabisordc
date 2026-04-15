@@ -62,6 +62,55 @@ const heroSlides: Recommendation[] = [
     rating: 4.9,
     route: '/home/explorer/site-touristique',
   },
+  {
+    id: 'hero-2',
+    title: 'Paysages époustouflants',
+    image: 'https://picsum.photos/800/600?random=1',
+    rating: 4.9,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-3',
+    title: 'Montagnes majestueuses',
+    image: 'https://picsum.photos/800/600?random=2',
+    rating: 4.8,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-4',
+    title: 'Cascades spectaculaires',
+    image: 'https://picsum.photos/800/600?random=3',
+    rating: 4.9,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-5',
+    title: 'Sommets africains',
+    image: 'https://picsum.photos/800/600?random=4',
+    rating: 4.8,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-6',
+    title: 'Déserts dorés',
+    image: 'https://picsum.photos/800/600?random=5',
+    rating: 4.7,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-7',
+    title: 'Savanes sauvages',
+    image: 'https://picsum.photos/800/600?random=6',
+    rating: 4.9,
+    route: '/home/explorer/site-touristique',
+  },
+  {
+    id: 'hero-8',
+    title: 'Villes historiques',
+    image: 'https://picsum.photos/800/600?random=7',
+    rating: 4.6,
+    route: '/home/explorer/site-touristique',
+  },
 ];
 
 const recommendations: Recommendation[] = [

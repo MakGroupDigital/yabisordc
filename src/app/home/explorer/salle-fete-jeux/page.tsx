@@ -1,405 +1,278 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
-import { BottomNav } from "@/components/home/bottom-nav";
-import { ArrowLeft, Phone, MessageCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
-import { shareItem, clearSharedItem } from '@/lib/share-utils';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Filter, Search, MapPin, Star, Users, Clock, DollarSign } from 'lucide-react';
+import { BottomNav } from '@/components/home/bottom-nav';
+import { SafeImage } from '@/components/ui/safe-image';
+import { sallesFete, categories } from '@/data/salles-fete';
+import { SalleFete, SalleFilters } from '@/types/salle-fete';
 
-interface SalleOffre {
-  id: string;
-  nom: string;
-  description: string;
-  telephone: string;
-  whatsapp: string;
-  images: string[];
-  type: 'salle-fete' | 'jeux';
-}
-
-const offres: SalleOffre[] = [
-  {
-    id: '1',
-    nom: 'Salle de Fête Le Palais',
-    description: 'Salle élégante pour vos événements : mariages, anniversaires, cérémonies. Capacité jusqu\'à 300 personnes.',
-    telephone: '+243 900 003 100',
-    whatsapp: '+243900003100',
-    type: 'salle-fete',
-    images: [
-      'https://images.unsplash.com/photo-1519167758481-83f29da2c4fe?w=800&q=80',
-      'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80',
-      'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&q=80',
-    ],
-  },
-  {
-    id: '2',
-    nom: 'Arcade Zone - Centre de Jeux',
-    description: 'Espace de jeux moderne avec jeux vidéo, billard, bowling et plus. Parfait pour les groupes et familles.',
-    telephone: '+243 900 003 101',
-    whatsapp: '+243900003101',
-    type: 'jeux',
-    images: [
-      'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
-      'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80',
-      'https://images.unsplash.com/photo-1595846519845-68e298c2eed7?w=800&q=80',
-    ],
-  },
-  {
-    id: '3',
-    nom: 'Salle des Fêtes Royal',
-    description: 'Grande salle de réception avec terrasse extérieure. Idéale pour vos grandes célébrations.',
-    telephone: '+243 900 003 102',
-    whatsapp: '+243900003102',
-    type: 'salle-fete',
-    images: [
-      'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80',
-      'https://images.unsplash.com/photo-1519167758481-83f29da2c4fe?w=800&q=80',
-      'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&q=80',
-    ],
-  },
-  {
-    id: '4',
-    nom: 'Fun Park - Parc de Jeux',
-    description: 'Parc de jeux pour enfants et adultes avec attractions, jeux gonflables et activités de groupe.',
-    telephone: '+243 900 003 103',
-    whatsapp: '+243900003103',
-    type: 'jeux',
-    images: [
-      'https://images.unsplash.com/photo-1595846519845-68e298c2eed7?w=800&q=80',
-      'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
-      'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=800&q=80',
-    ],
-  },
-  {
-    id: '5',
-    nom: 'Salle Événementielle Prestige',
-    description: 'Salle moderne et sophistiquée avec équipements audio-visuels. Parfaite pour conférences et galas.',
-    telephone: '+243 900 003 104',
-    whatsapp: '+243900003104',
-    type: 'salle-fete',
-    images: [
-      'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&q=80',
-      'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80',
-      'https://images.unsplash.com/photo-1519167758481-83f29da2c4fe?w=800&q=80',
-    ],
-  },
-];
-
-export const dynamic = 'force-dynamic';
-
-function SalleFeteJeuxPageContent() {
+export default function SalleFetePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-  const [currentImages, setCurrentImages] = useState<Record<string, number>>({});
-  const [isScrolling, setIsScrolling] = useState<Record<string, boolean>>({});
-  const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<SalleFilters>({
+    sortBy: 'rating',
+    sortOrder: 'desc'
+  });
 
-  // Gérer les deep links
-  useEffect(() => {
-    const highlight = searchParams.get('highlight');
-    if (highlight) {
-      setHighlightedId(highlight);
-      clearSharedItem();
-      
-      setTimeout(() => {
-        const element = document.getElementById(`salle-${highlight}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const filteredSalles = useMemo(() => {
+    let result = sallesFete.filter(salle => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (!salle.name.toLowerCase().includes(query) &&
+            !salle.description.toLowerCase().includes(query) &&
+            !salle.location.city.toLowerCase().includes(query)) {
+          return false;
         }
-      }, 300);
-      
-      setTimeout(() => {
-        setHighlightedId(null);
-      }, 3000);
-    }
-  }, [searchParams]);
+      }
 
-  // Initialiser les indices d'images pour chaque offre
-  useEffect(() => {
-    const initial: Record<string, number> = {};
-    offres.forEach(offre => {
-      initial[offre.id] = 0;
+      // Location filters
+      if (filters.city && salle.location.city !== filters.city) return false;
+      if (filters.province && salle.location.province !== filters.province) return false;
+      if (filters.region && salle.location.region !== filters.region) return false;
+
+      // Category filter
+      if (filters.category && salle.category !== filters.category) return false;
+
+      // Price filters
+      if (filters.minPrice && salle.pricePerHour < filters.minPrice) return false;
+      if (filters.maxPrice && salle.pricePerHour > filters.maxPrice) return false;
+
+      // Capacity filters
+      if (filters.minCapacity && salle.capacity < filters.minCapacity) return false;
+      if (filters.maxCapacity && salle.capacity > filters.maxCapacity) return false;
+
+      return salle.isActive;
     });
-    setCurrentImages(initial);
-  }, []);
 
-  // Auto-scroll horizontal pour chaque offre
-  useEffect(() => {
-    offres.forEach(offre => {
-      if (offre.images.length <= 1) return;
+    // Sorting
+    if (filters.sortBy) {
+      result.sort((a, b) => {
+        let aValue: any, bValue: any;
+        
+        switch (filters.sortBy) {
+          case 'price':
+            aValue = a.pricePerHour;
+            bValue = b.pricePerHour;
+            break;
+          case 'rating':
+            aValue = a.rating;
+            bValue = b.rating;
+            break;
+          case 'capacity':
+            aValue = a.capacity;
+            bValue = b.capacity;
+            break;
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          default:
+            return 0;
+        }
 
-      const interval = setInterval(() => {
-        setCurrentImages(prev => ({
-          ...prev,
-          [offre.id]: ((prev[offre.id] || 0) + 1) % offre.images.length,
-        }));
-      }, 4000);
-
-      return () => clearInterval(interval);
-    });
-  }, []);
-
-  // Fonction pour faire défiler les images
-  const scrollToImage = (offreId: string, index: number) => {
-    const container = scrollRefs.current[offreId];
-    if (!container) return;
-
-    const imageWidth = container.clientWidth;
-    container.scrollTo({
-      left: imageWidth * index,
-      behavior: 'smooth',
-    });
-    setCurrentImages(prev => ({ ...prev, [offreId]: index }));
-  };
-
-  // Gestion du swipe/drag horizontal
-  const handleTouchStart = (offreId: string) => {
-    setIsScrolling(prev => ({ ...prev, [offreId]: true }));
-  };
-
-  const handleTouchEnd = (offreId: string) => {
-    setIsScrolling(prev => ({ ...prev, [offreId]: false }));
-  };
-
-  const handleScroll = (offreId: string) => {
-    if (isScrolling[offreId]) return;
-    
-    const container = scrollRefs.current[offreId];
-    if (!container) return;
-
-    const imageWidth = container.clientWidth;
-    const currentIndex = Math.round(container.scrollLeft / imageWidth);
-    setCurrentImages(prev => ({ ...prev, [offreId]: currentIndex }));
-  };
-
-  const handleAppeler = (telephone: string, nom: string) => {
-    window.location.href = `tel:${telephone}`;
-    toast({
-      title: "Appel en cours",
-      description: `Appel de ${nom}`,
-    });
-  };
-
-  const handleWhatsApp = (whatsapp: string, nom: string) => {
-    const message = encodeURIComponent(`Bonjour, je suis intéressé(e) par votre offre ${nom}.`);
-    const url = `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=${message}`;
-    window.open(url, '_blank');
-    toast({
-      title: "WhatsApp ouvert",
-      description: `Discussion avec ${nom}`,
-    });
-  };
-
-  const handleShare = async (offre: SalleOffre) => {
-    const result = await shareItem('salle', offre.id, offre.nom, offre.description);
-    if (result.success) {
-      toast({
-        title: result.method === 'native' ? "Partagé !" : "Lien copié !",
-        description: result.method === 'native' 
-          ? `${offre.nom} a été partagé` 
-          : "Le lien a été copié dans le presse-papiers",
+        if (filters.sortOrder === 'desc') {
+          return bValue > aValue ? 1 : -1;
+        }
+        return aValue > bValue ? 1 : -1;
       });
     }
-  };
 
-  const nextImage = (offreId: string, maxImages: number) => {
-    setCurrentImages(prev => {
-      const next = ((prev[offreId] || 0) + 1) % maxImages;
-      scrollToImage(offreId, next);
-      return { ...prev, [offreId]: next };
-    });
-  };
+    return result;
+  }, [searchQuery, filters]);
 
-  const prevImage = (offreId: string, maxImages: number) => {
-    setCurrentImages(prev => {
-      const prevIndex = ((prev[offreId] || 0) - 1 + maxImages) % maxImages;
-      scrollToImage(offreId, prevIndex);
-      return { ...prev, [offreId]: prevIndex };
-    });
+  const uniqueCities = [...new Set(sallesFete.map(s => s.location.city))];
+  const uniqueProvinces = [...new Set(sallesFete.map(s => s.location.province))];
+
+  const handleSalleClick = (salle: SalleFete) => {
+    router.push(`/home/explorer/salle-fete-jeux/${salle.id}`);
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
+    <div className="min-h-screen bg-[#F6F6F2] pb-24">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md border-b border-gray-800">
-        <div className="container mx-auto px-4 py-4 max-w-2xl">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="text-white hover:bg-gray-800"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-[#FF8800]/20">
-                <MessageCircle className="h-6 w-6 text-[#FF8800]" />
-              </div>
-              <h1 className="text-xl font-bold text-white">Salle de Fête et Jeux</h1>
-            </div>
+      <div className="bg-white shadow-sm">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={() => router.back()}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-semibold">Salles de Fête</h1>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+          >
+            <Filter className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="px-4 pb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher une salle..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none"
+            />
           </div>
         </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="border-t bg-gray-50 p-4">
+            <div className="space-y-4">
+              {/* Category Filter */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">Catégorie</label>
+                <select
+                  value={filters.category || ''}
+                  onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value || undefined }))}
+                  className="w-full rounded-lg border border-gray-200 p-2"
+                >
+                  <option value="">Toutes les catégories</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* City Filter */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">Ville</label>
+                <select
+                  value={filters.city || ''}
+                  onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value || undefined }))}
+                  className="w-full rounded-lg border border-gray-200 p-2"
+                >
+                  <option value="">Toutes les villes</option>
+                  {uniqueCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price Range */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Prix min ($/h)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={filters.minPrice || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value ? Number(e.target.value) : undefined }))}
+                    className="w-full rounded-lg border border-gray-200 p-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Prix max ($/h)</label>
+                  <input
+                    type="number"
+                    placeholder="1000"
+                    value={filters.maxPrice || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value ? Number(e.target.value) : undefined }))}
+                    className="w-full rounded-lg border border-gray-200 p-2"
+                  />
+                </div>
+              </div>
+
+              {/* Sort Options */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">Trier par</label>
+                <select
+                  value={`${filters.sortBy}-${filters.sortOrder}`}
+                  onChange={(e) => {
+                    const [sortBy, sortOrder] = e.target.value.split('-');
+                    setFilters(prev => ({ ...prev, sortBy: sortBy as any, sortOrder: sortOrder as any }));
+                  }}
+                  className="w-full rounded-lg border border-gray-200 p-2"
+                >
+                  <option value="rating-desc">Note (élevée à faible)</option>
+                  <option value="rating-asc">Note (faible à élevée)</option>
+                  <option value="price-asc">Prix (faible à élevé)</option>
+                  <option value="price-desc">Prix (élevé à faible)</option>
+                  <option value="capacity-desc">Capacité (grande à petite)</option>
+                  <option value="capacity-asc">Capacité (petite à grande)</option>
+                  <option value="name-asc">Nom (A-Z)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Contenu - Style Instagram (feed vertical) */}
-      <div className="h-full overflow-y-scroll scrollbar-hide overscroll-none pt-20 pb-32">
-        <div className="space-y-0">
-          {offres.map((offre) => (
-            <Card 
-              key={offre.id} 
-              id={`salle-${offre.id}`}
-              className={`bg-black border-b border-gray-800 rounded-none transition-all duration-500 ${
-                highlightedId === offre.id 
-                  ? 'ring-2 ring-[#FF8800] ring-offset-2 ring-offset-black scale-[1.02]' 
-                  : ''
-              }`}
+      {/* Results */}
+      <div className="p-4">
+        <div className="mb-4 text-sm text-gray-600">
+          {filteredSalles.length} salle{filteredSalles.length > 1 ? 's' : ''} trouvée{filteredSalles.length > 1 ? 's' : ''}
+        </div>
+
+        <div className="space-y-4">
+          {filteredSalles.map((salle) => (
+            <div
+              key={salle.id}
+              onClick={() => handleSalleClick(salle)}
+              className="cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
             >
-              <CardContent className="p-0">
-                {/* Header de la carte (comme Instagram) */}
-                <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-800">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF8800] to-[#FF6600] flex items-center justify-center text-white font-bold">
-                    {offre.nom.charAt(0)}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold text-sm">{offre.nom}</h3>
-                    <p className="text-gray-400 text-xs">
-                      {offre.type === 'salle-fete' ? 'Salle de Fête' : 'Centre de Jeux'}
-                    </p>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800"
-                    onClick={() => handleShare(offre)}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
+              <div className="flex gap-4">
+                <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
+                  <SafeImage
+                    src={salle.images[0]}
+                    alt={salle.name}
+                    className="h-full w-full object-cover"
+                    fallbackText="Salle"
+                  />
                 </div>
-
-                {/* Galerie d'images défilantes horizontalement */}
-                <div className="relative w-full" style={{ aspectRatio: '1 / 1' }}>
-                  <div
-                    ref={(el) => {
-                      scrollRefs.current[offre.id] = el;
-                    }}
-                    className="flex overflow-x-scroll scrollbar-hide snap-x snap-mandatory scroll-smooth"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    onTouchStart={() => handleTouchStart(offre.id)}
-                    onTouchEnd={() => handleTouchEnd(offre.id)}
-                    onScroll={() => handleScroll(offre.id)}
-                  >
-                    {offre.images.map((image, index) => (
-                      <div
-                        key={index}
-                        className="relative min-w-full h-full snap-start"
-                      >
-                        <Image
-                          src={image}
-                          alt={`${offre.nom} - Image ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ))}
+                
+                <div className="flex-1 space-y-1">
+                  <h3 className="font-semibold text-gray-900">{salle.name}</h3>
+                  
+                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <MapPin className="h-3 w-3" />
+                    <span>{salle.location.city}, {salle.location.province}</span>
                   </div>
-
-                  {/* Boutons de navigation (si plusieurs images) */}
-                  {offre.images.length > 1 && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full h-8 w-8"
-                        onClick={() => prevImage(offre.id, offre.images.length)}
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full h-8 w-8"
-                        onClick={() => nextImage(offre.id, offre.images.length)}
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </Button>
-
-                      {/* Indicateurs de pagination */}
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                        {offre.images.map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => scrollToImage(offre.id, index)}
-                            className={`h-1.5 rounded-full transition-all ${
-                              (currentImages[offre.id] || 0) === index
-                                ? 'w-6 bg-white'
-                                : 'w-1.5 bg-white/50'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>{salle.capacity} pers.</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      <span>{salle.pricePerHour}$/h</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <span>{salle.rating}</span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 line-clamp-2">{salle.description}</p>
                 </div>
-
-                {/* Description et actions */}
-                <div className="px-4 py-3 space-y-3">
-                  <div>
-                    <p className="text-white font-semibold text-sm mb-1">{offre.nom}</p>
-                    <p className="text-gray-300 text-sm">{offre.description}</p>
-                  </div>
-
-                  {/* Boutons d'action */}
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <Button
-                      onClick={() => handleAppeler(offre.telephone, offre.nom)}
-                      variant="outline"
-                      className="flex-1 border-gray-700 bg-gray-800/50 text-white hover:bg-gray-800"
-                    >
-                      <Phone className="h-4 w-4 mr-2" />
-                      Appeler
-                    </Button>
-                    <Button
-                      onClick={() => handleWhatsApp(offre.whatsapp, offre.nom)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      WhatsApp
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
+
+        {filteredSalles.length === 0 && (
+          <div className="py-12 text-center">
+            <div className="text-gray-400">
+              <Search className="mx-auto h-12 w-12 mb-4" />
+              <p>Aucune salle trouvée</p>
+              <p className="text-sm">Essayez de modifier vos critères de recherche</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          <BottomNav />
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }
-
-export default function SalleFeteJeuxPage() {
-  return (
-    <Suspense fallback={
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="text-white">Chargement...</div>
-      </div>
-    }>
-      <SalleFeteJeuxPageContent />
-    </Suspense>
-  );
-}
-
-
-

@@ -48,7 +48,7 @@ const categoryShortcuts: CategoryShortcut[] = [
   { id: 'hebergement', name: 'Hébergement', icon: HebergementIcon, route: '/home/explorer/hebergement' },
   { id: 'events', name: 'Évents', icon: EvenementsIcon, route: '/home/explorer/evenements' },
   { id: 'discover', name: 'Découverte', icon: SiteTouristiqueIcon, route: '/home/explorer/site-touristique' },
-  { id: 'culture', name: 'Culture', icon: SalleFeteIcon, route: '/home/explorer/salle-fete-jeux' },
+  { id: 'culture', name: 'Salle de fête', icon: SalleFeteIcon, route: '/home/explorer/salle-fete-jeux' },
   { id: 'mobilite', name: 'Mobilité', icon: MobiliteIcon, route: '/home/explorer/mobilite' },
   { id: 'urgence', name: 'Urgence', icon: UrgenceMedicaleIcon, route: '/home/explorer/urgence-medicale' },
   { id: 'securite', name: 'Sécurité', icon: SecuriteIcon, route: '/home/explorer/securite' },

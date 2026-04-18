@@ -1,0 +1,10 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#E74C3C"/>
+  <rect x="50" y="50" width="700" height="500" fill="#FFFFFF" rx="20"/>
+  <circle cx="400" cy="200" r="80" fill="#E74C3C"/>
+  <rect x="320" y="160" width="160" height="80" fill="#FFFFFF" rx="10"/>
+  <text x="400" y="190" text-anchor="middle" fill="#E74C3C" font-family="Arial" font-size="24" font-weight="bold">🇨🇩</text>
+  <text x="400" y="350" text-anchor="middle" fill="#333" font-family="Arial" font-size="32" font-weight="bold">Mbote Restaurant</text>
+  <text x="400" y="400" text-anchor="middle" fill="#666" font-family="Arial" font-size="18">Spécialités Congolaises</text>
+  <text x="400" y="450" text-anchor="middle" fill="#999" font-family="Arial" font-size="16">Avenue Lumumba, Lubumbashi</text>
+</svg>

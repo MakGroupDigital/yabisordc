@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
+import Image from 'next/image';
 import { BottomNav } from "@/components/home/bottom-nav";
 import { UtensilsCrossed, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Star, Clock, Truck, Phone, MessageCircle, Navigation, Filter, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { SafeImage } from "@/components/ui/safe-image";
+import { RestaurantImage } from "@/components/ui/restaurant-image";
 import {
   Sheet,
   SheetContent,
@@ -60,10 +62,10 @@ const restaurants: Restaurant[] = [
     latitude: -4.3276,
     longitude: 15.3136,
     images: [
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
-      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+      '/images/restaurants/restaurant-1.svg',
+      'https://placehold.co/800x600/FF6B6B/FFFFFF?text=Restaurant+Le+Roi',
+      'https://placehold.co/800x600/4ECDC4/FFFFFF?text=Cuisine+Congolaise',
+      'https://placehold.co/800x600/45B7D1/FFFFFF?text=Plats+Traditionnels',
     ],
   },
   {
@@ -83,9 +85,9 @@ const restaurants: Restaurant[] = [
     latitude: -4.3300,
     longitude: 15.3150,
     images: [
-      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
+      '/images/restaurants/restaurant-2.svg',
+      'https://placehold.co/800x600/FFA07A/FFFFFF?text=La+Terrasse',
+      'https://placehold.co/800x600/98D8C8/FFFFFF?text=Cuisine+Internationale',
     ],
   },
   {
@@ -105,10 +107,10 @@ const restaurants: Restaurant[] = [
     latitude: -11.6642,
     longitude: 27.4794,
     images: [
-      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+      '/images/restaurants/restaurant-3.svg',
+      'https://placehold.co/800x600/E74C3C/FFFFFF?text=Mbote+Restaurant',
+      'https://placehold.co/800x600/3498DB/FFFFFF?text=Specialites+Congolaises',
+      'https://placehold.co/800x600/2ECC71/FFFFFF?text=Ingredients+Frais',
     ],
   },
   {
@@ -128,9 +130,9 @@ const restaurants: Restaurant[] = [
     latitude: -4.3200,
     longitude: 15.3100,
     images: [
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-      'https://images.unsplash.com/photo-1555396273-3677a3c9d74c?w=800&q=80',
+      '/images/restaurants/restaurant-4.svg',
+      'https://placehold.co/800x600/FF8C00/FFFFFF?text=Pizza+Express',
+      'https://placehold.co/800x600/32CD32/FFFFFF?text=Pizzas+Italiennes',
     ],
   },
   {
@@ -150,9 +152,9 @@ const restaurants: Restaurant[] = [
     latitude: -1.6792,
     longitude: 29.2228,
     images: [
-      'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=800&q=80',
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+      '/images/restaurants/restaurant-5.svg',
+      'https://placehold.co/800x600/20B2AA/FFFFFF?text=Restaurant+Nganda',
+      'https://placehold.co/800x600/4682B4/FFFFFF?text=Poisson+Frais',
     ],
   },
 ];
@@ -577,11 +579,11 @@ function RestaurationPageContent() {
                     >
                       {restaurant.images.map((image, index) => (
                         <div key={index} className="relative min-w-full h-full snap-start">
-                          <Image
+                          <RestaurantImage
                             src={image}
                             alt={`${restaurant.nom} - Image ${index + 1}`}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
+                            restaurantName={restaurant.nom}
                           />
                         </div>
                       ))}
